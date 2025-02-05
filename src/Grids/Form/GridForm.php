@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace AppUtils\Grids\Form;
 
-use AppUtils\Grids\HiddenVar;
 use AppUtils\Grids\Traits\IDInterface;
 use AppUtils\Grids\Traits\IDTrait;
 use AppUtils\Interfaces\ClassableInterface;

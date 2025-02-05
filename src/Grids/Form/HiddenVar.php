@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace AppUtils\Grids;
+namespace AppUtils\Grids\Form;
 
 use AppUtils\HTMLTag;
 use AppUtils\Interfaces\RenderableInterface;
