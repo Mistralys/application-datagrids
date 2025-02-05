@@ -1,0 +1,23 @@
+{
+  "name": "mistralys/application-datagrids",
+  "description": "PHP classes to abstract the rendering of Bootstrap-based HTML tables.",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Sebastian Mordziol",
+      "email": "s.mordziol@mistralys.eu"
+    }
+  ],
+  "minimum-stability": "dev",
+  "prefer-stable": true,
+  "require": {
+    "mistralys/application-utils-core": "dev-main",
+    "twbs/bootstrap": "^5.3.3",
+    "php": ">=8.2"
+  },
+  "autoload": {
+    "classmap": [
+      "src"
+    ]
+  }
+}
