@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace AppUtils\Grids\Renderer;
 
-use AppUtils\Grids\Cells\GridCell;
+use AppUtils\Grids\Actions\GridActions;
+use AppUtils\Grids\Actions\Type\RegularAction;
+use AppUtils\Grids\Actions\Type\SeparatorAction;
+use AppUtils\Grids\Cells\RegularCell;
 use AppUtils\Grids\Columns\GridColumnInterface;
 use AppUtils\Grids\Footer\GridFooter;
 use AppUtils\Grids\Form\GridForm;
@@ -31,6 +34,10 @@ interface GridRendererInterface
 
     public function renderFooterTop(GridFooter $footer): string|StringableInterface;
     public function renderFooterBottom(GridFooter $footer): string|StringableInterface;
+
+    public function renderActionsRow(GridActions $actions) : string|StringableInterface;
+    public function renderSeparatorAction(SeparatorAction $action) : string|StringableInterface;
+    public function renderActionOption(RegularAction $action) : string|StringableInterface;
     /**
      * @param HeaderRow $row
      * @param GridColumnInterface[] $columns
@@ -62,5 +69,5 @@ interface GridRendererInterface
      * @return string|StringableInterface
      */
     public function renderCustomRow(GridRowInterface $row, array $columns): string|StringableInterface;
-    public function renderRowCell(GridCell $cell): string|StringableInterface;
+    public function renderRowCell(RegularCell $cell): string|StringableInterface;
 }

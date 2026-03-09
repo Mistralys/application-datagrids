@@ -5,26 +5,28 @@ declare(strict_types=1);
 namespace AppUtils\Grids\Cells;
 
 use AppUtils\Grids\Columns\GridColumnInterface;
+use AppUtils\Grids\Traits\AlignInterface;
 use AppUtils\Grids\Traits\AlignTrait;
+use AppUtils\Grids\Traits\IDInterface;
 use AppUtils\Grids\Traits\IDTrait;
-use AppUtils\Traits\ClassableTrait;
 use WebcomicsBuilder\Grids\Rows\Types\StandardRow;
 
-class GridCell implements GridCellInterface
+class RegularCell extends BaseCell implements IDInterface, AlignInterface
 {
     use IDTrait;
-    use ClassableTrait;
     use AlignTrait;
 
     private mixed $value = null;
-    private StandardRow $row;
-    private GridColumnInterface $column;
 
     public function __construct(StandardRow $row, GridColumnInterface $column, mixed $value=null)
     {
-        $this->row = $row;
-        $this->column = $column;
+        parent::__construct($row, $column);
+
         $this->setValue($value);
+    }
+
+    protected function init(): void
+    {
     }
 
     public function resolveAlign() : ?string
@@ -41,16 +43,6 @@ class GridCell implements GridCellInterface
     public function getValue() : mixed
     {
         return $this->value;
-    }
-
-    public function getColumn() : GridColumnInterface
-    {
-        return $this->column;
-    }
-
-    public function getRow() : StandardRow
-    {
-        return $this->row;
     }
 
     public function renderContent() : string

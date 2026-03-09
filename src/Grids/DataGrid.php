@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace AppUtils\Grids;
 
+use AppUtils\Grids\Actions\GridActions;
 use AppUtils\Grids\Columns\ColumnManager;
 use AppUtils\Grids\Columns\GridColumnInterface;
 use AppUtils\Grids\Footer\GridFooter;
 use AppUtils\Grids\Form\GridForm;
 use AppUtils\Grids\Header\GridHeader;
 use AppUtils\Grids\Options\GridOptions;
-use AppUtils\Grids\Renderer\GridRendererInterface;
 use AppUtils\Grids\Renderer\RendererManager;
 use AppUtils\Grids\Rows\GridRowInterface;
 use AppUtils\Grids\Rows\RowManager;
@@ -32,6 +32,7 @@ class DataGrid implements DataGridInterface
     private GridHeader $header;
     private GridFooter $footer;
     private GridForm $form;
+    private RendererManager $rendererManager;
 
     public function __construct(?string $id=null)
     {
@@ -83,6 +84,11 @@ class DataGrid implements DataGridInterface
         if($headerRow !== null && $this->options->isHeaderRepeated(count($rows))) {
             echo $renderer->renderHeaderRowRepeated($headerRow, $columns);
         }
+
+        if(isset($this->actions)) {
+            echo $renderer->renderActionsRow($this->actions);
+        }
+
         echo $renderer->renderFooterBottom($this->footer);
 
         echo $renderer->renderBody($rows, $columns);
@@ -137,6 +143,17 @@ class DataGrid implements DataGridInterface
     public function renderer() : RendererManager
     {
         return $this->rendererManager;
+    }
+
+    private ?GridActions $actions = null;
+
+    public function actions() : GridActions
+    {
+        if(!isset($this->actions)) {
+            $this->actions = new GridActions($this);
+        }
+
+        return $this->actions;
     }
 
     public function getSortColumn() : ?GridColumnInterface

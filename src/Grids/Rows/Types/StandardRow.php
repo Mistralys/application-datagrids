@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace WebcomicsBuilder\Grids\Rows\Types;
 
-use AppUtils\Grids\Cells\GridCell;
+use AppUtils\Grids\Cells\RegularCell;
+use AppUtils\Grids\Cells\SelectionCell;
 use AppUtils\Grids\Columns\GridColumnInterface;
+use AppUtils\Grids\DataGridInterface;
 use AppUtils\Grids\Rows\BaseGridRow;
 use AppUtils\Grids\Rows\GridRowInterface;
 use AppUtils\Grids\Rows\RowManager;
@@ -38,12 +40,12 @@ class StandardRow extends BaseGridRow
         return $this;
     }
 
-    public function getCell(GridColumnInterface|string $column): GridCell
+    public function getCell(GridColumnInterface|string $column): RegularCell
     {
         $name = $this->resolveName($column);
 
         if(!isset($this->cells[$name])) {
-            $this->cells[$name] = new GridCell($this, $this->manager->getGrid()->columns()->getByName($name));
+            $this->cells[$name] = new RegularCell($this, $this->manager->getGrid()->columns()->getByName($name));
         }
 
         return $this->cells[$name];
@@ -74,5 +76,20 @@ class StandardRow extends BaseGridRow
         }
 
         return $this;
+    }
+
+    public function isSelectable() : bool
+    {
+        return $this->manager->getGrid()->actions()->hasActions();
+    }
+
+    public function getSelectionCell() : ?SelectionCell
+    {
+
+    }
+
+    public function getGrid() : DataGridInterface
+    {
+        return $this->manager->getGrid();
     }
 }

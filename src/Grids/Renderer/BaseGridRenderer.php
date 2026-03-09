@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace AppUtils\Grids\Renderer;
 
-use AppUtils\Grids\Cells\GridCell;
+use AppUtils\Grids\Actions\GridActions;
+use AppUtils\Grids\Actions\Type\GridActionInterface;
+use AppUtils\Grids\Actions\Type\RegularAction;
+use AppUtils\Grids\Actions\Type\SeparatorAction;
+use AppUtils\Grids\Cells\RegularCell;
 use AppUtils\Grids\Columns\GridColumnInterface;
 use AppUtils\Grids\DataGridInterface;
 use AppUtils\Grids\Footer\GridFooter;
@@ -182,6 +186,47 @@ abstract class BaseGridRenderer implements GridRendererInterface
         return $this->createFooter($footer)->renderClose();
     }
 
+    public function renderActionsRow(GridActions $actions): string|StringableInterface
+    {
+        $items = $actions->getActions();
+        if(empty($items)) {
+            return '';
+        }
+
+        $select = HTMLTag::create('select');
+
+        foreach($items as $item) {
+            if($item instanceof SeparatorAction) {
+                $select->appendContent($this->renderSeparatorAction($item));
+                continue;
+            }
+
+            if($item instanceof RegularAction) {
+                $select->appendContent($this->renderActionOption($item));
+                continue;
+            }
+        }
+
+        return HTMLTag::create('tr')
+            ->setContent(HTMLTag::create('td')
+                ->attr('colspan', $this->grid->columns()->countColumns())
+                ->setContent($select));
+    }
+
+    public function renderSeparatorAction(SeparatorAction $action) : string|StringableInterface
+    {
+        return HTMLTag::create('option')
+            ->addClass('separator')
+            ->setContent('-----');
+    }
+
+    public function renderActionOption(RegularAction $action) : string|StringableInterface
+    {
+        return HTMLTag::create('option')
+            ->attr('value', $action->getName())
+            ->setContent($action->getLabel());
+    }
+
     /**
      * @param GridColumnInterface[] $columns
      * @return string|StringableInterface
@@ -229,6 +274,10 @@ abstract class BaseGridRenderer implements GridRendererInterface
     {
         $output = '';
 
+        if($row->isSelectable()) {
+            $cell = $row->getSelectionCell();
+        }
+
         foreach($columns as $column) {
             $cell = $row->getCell($column);
             $output .= $this->renderRowCell($cell);
@@ -257,12 +306,12 @@ abstract class BaseGridRenderer implements GridRendererInterface
             ->setContent($row->getContent());
     }
 
-    public function renderRowCell(GridCell $cell): string|StringableInterface
+    public function renderRowCell(RegularCell $cell): string|StringableInterface
     {
         return $this->createRowCell($cell);
     }
 
-    protected function createRowCell(GridCell $cell) : HTMLTag
+    protected function createRowCell(RegularCell $cell) : HTMLTag
     {
         $tag = HTMLTag::create('td')
             ->id($cell->getID())
