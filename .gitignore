@@ -5,3 +5,7 @@ composer.phar
 # You may choose to ignore a library lock file http://getcomposer.org/doc/02-libraries.md#lock-file
 # composer.lock
 .idea/deployment.xml
+.idea/copilot.data.migration.edit.xml
+.idea/copilot.data.migration.ask2agent.xml
+.idea/copilot.data.migration.ask.xml
+.idea/copilot.data.migration.agent.xml
