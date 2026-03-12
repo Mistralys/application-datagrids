@@ -11,6 +11,7 @@ use AppUtils\Grids\Footer\GridFooter;
 use AppUtils\Grids\Form\GridForm;
 use AppUtils\Grids\Header\GridHeader;
 use AppUtils\Grids\Options\GridOptions;
+use AppUtils\Grids\Pagination\GridPagination;
 use AppUtils\Grids\Renderer\RendererManager;
 use AppUtils\Grids\Rows\GridRowInterface;
 use AppUtils\Grids\Rows\RowManager;
@@ -67,6 +68,11 @@ class DataGrid implements DataGridInterface
     {
         $renderer = $this->renderer()->getRenderer();
 
+        if (!$this->actionsProcessed && isset($this->actions)) {
+            $this->actions->processSubmittedActions();
+            $this->actionsProcessed = true;
+        }
+
         $rows = $this->resolveRows();
         $headerRow = $this->rows->getHeaderRow();
         $columns = $this->columns->getColumns();
@@ -83,6 +89,10 @@ class DataGrid implements DataGridInterface
         echo $renderer->renderFooterTop($this->footer);
         if($headerRow !== null && $this->options->isHeaderRepeated(count($rows))) {
             echo $renderer->renderHeaderRowRepeated($headerRow, $columns);
+        }
+
+        if (isset($this->pagination) && $this->pagination->hasProvider()) {
+            echo $renderer->renderPaginationRow($this->pagination);
         }
 
         if(isset($this->actions)) {
@@ -146,6 +156,8 @@ class DataGrid implements DataGridInterface
     }
 
     private ?GridActions $actions = null;
+    private ?GridPagination $pagination = null;
+    private bool $actionsProcessed = false;
 
     public function actions() : GridActions
     {
@@ -154,6 +166,55 @@ class DataGrid implements DataGridInterface
         }
 
         return $this->actions;
+    }
+
+    /**
+     * Checks whether any actions have been configured on this grid.
+     *
+     * Unlike {@see actions()}, this method does NOT lazily instantiate
+     * the GridActions object — it returns false when no actions have
+     * been registered.
+     */
+    public function hasActions(): bool
+    {
+        return isset($this->actions) && $this->actions->hasActions();
+    }
+
+    /**
+     * Explicitly processes submitted action forms.
+     *
+     * Call this before rendering to allow action callbacks to perform
+     * request-lifecycle operations (redirects, session writes, etc.)
+     * before any HTML output is flushed.
+     *
+     * This method is idempotent: calling it multiple times (or calling it
+     * before rendering, where generateOutput() also triggers processing)
+     * will only invoke the action callback once.
+     *
+     * @return bool True when a matching action was dispatched, false otherwise.
+     */
+    public function processActions(): bool
+    {
+        if ($this->actionsProcessed) {
+            return false;
+        }
+
+        $this->actionsProcessed = true;
+
+        if (!isset($this->actions)) {
+            return false;
+        }
+
+        return $this->actions->processSubmittedActions();
+    }
+
+    public function pagination(): GridPagination
+    {
+        if (!isset($this->pagination)) {
+            $this->pagination = new GridPagination($this);
+        }
+
+        return $this->pagination;
     }
 
     public function getSortColumn() : ?GridColumnInterface

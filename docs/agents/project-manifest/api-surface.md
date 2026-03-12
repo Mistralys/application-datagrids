@@ -18,6 +18,10 @@ interface DataGridInterface extends RenderableInterface, ClassableInterface
     public function options(): GridOptions;
     public function columns(): ColumnManager;
     public function rows(): RowManager;
+    public function actions(): GridActions;
+    public function hasActions(): bool;           // no lazy init — false when no actions configured
+    public function processActions(): bool;       // idempotent — dispatches action callback at most once per request
+    public function pagination(): GridPagination;
     public function getSortColumn(): ?GridColumnInterface;
     public function getSortDir(): string;
 }
@@ -41,6 +45,8 @@ class DataGrid implements DataGridInterface
     public function form(): GridForm;
     public function renderer(): RendererManager;
     public function actions(): GridActions;
+    public function processActions(): bool;       // idempotent — dispatches action callback at most once per request
+    public function pagination(): GridPagination;
     public function getSortColumn(): ?GridColumnInterface;
     public function getSortDir(): string;
 }
@@ -49,7 +55,11 @@ class DataGrid implements DataGridInterface
 ### `DataGridException`
 
 ```php
-class DataGridException extends BaseException {}
+class DataGridException extends BaseException
+{
+    public const ERROR_NO_PAGINATION_PROVIDER = 171700;
+    public const ERROR_NO_VALUE_COLUMN = 171701;
+}
 ```
 
 ---
@@ -176,8 +186,8 @@ abstract class BaseGridRow implements GridRowInterface
 ```php
 class RowManager
 {
-    public function __construct(DataGrid $grid);
-    public function getGrid(): DataGrid;
+    public function __construct(DataGridInterface $grid);
+    public function getGrid(): DataGridInterface;
     public function addArrays(array $rows): self;
     public function addArray(array $columnValues): StandardRow;
     public function addMerged($content = null): MergedRow;
@@ -209,7 +219,8 @@ class StandardRow extends BaseGridRow
     public function getValue(GridColumnInterface|string $column): mixed;
     public function setValues(array $values): GridRowInterface;
     public function isSelectable(): bool;
-    public function getSelectionCell(): ?SelectionCell;
+    public function getSelectValue(): string;      // returns the string value of the value-column cell
+    public function getSelectionCell(): ?SelectionCell;  // null when not selectable; throws DataGridException::ERROR_NO_VALUE_COLUMN when selectable but value column not configured
     public function getGrid(): DataGridInterface;
 }
 ```
@@ -282,11 +293,15 @@ class RegularCell extends BaseCell implements IDInterface, AlignInterface
 
 ### `SelectionCell`
 
+Standalone class — does **not** extend `BaseCell` or implement `GridCellInterface` (has no associated column).
+Accessed via `StandardRow::getSelectionCell()`.
+
 ```php
-class SelectionCell extends BaseCell
+class SelectionCell
 {
-    public function getID(): string;
-    public function renderContent(): string;
+    public function __construct(StandardRow $row);
+    public function getRow(): StandardRow;
+    public function renderContent(): string;  // <input type="checkbox" name="selected[]" value="..."/>
 }
 ```
 
@@ -299,13 +314,16 @@ class SelectionCell extends BaseCell
 ```php
 class GridActions
 {
-    public function __construct(DataGrid $grid);
+    public function __construct(DataGridInterface $grid);
     public function setValueColumn(string|GridColumnInterface|NULL $column): self;
+    public function getValueColumn(): ?GridColumnInterface;
+    public function getFormActionFieldName(): string;  // returns 'grid_action'
+    public function getFormSelectionFieldName(): string;  // returns 'selected'
     public function add(string $name, string $label): RegularAction;
     public function separator(): self;
-    public function getActions(): array; // RegularAction[]
-    public function render(): string;
+    public function getActions(): array; // GridActionInterface[]
     public function hasActions(): bool;
+    public function processSubmittedActions(?array $postData = null): bool;  // null → reads $_POST; [] → empty array
 }
 ```
 
@@ -323,6 +341,9 @@ class RegularAction implements GridActionInterface
     public function __construct(string $name, string $label);
     public function getName(): string;
     public function getLabel(): string;
+    public function setCallback(callable $callback): self;
+    public function getCallback(): ?callable;
+    public function hasCallback(): bool;
 }
 ```
 
@@ -360,6 +381,9 @@ interface GridRendererInterface
     public function renderMergedRow(MergedRow $row, int $colspan): string|StringableInterface;
     public function renderCustomRow(GridRowInterface $row, array $columns): string|StringableInterface;
     public function renderRowCell(RegularCell $cell): string|StringableInterface;
+    public function renderSelectionCell(SelectionCell $cell): string|StringableInterface;
+    public function renderSelectionHeaderCell(): string|StringableInterface;
+    public function renderPaginationRow(GridPagination $pagination): string|StringableInterface;
 }
 ```
 
@@ -382,9 +406,30 @@ abstract class BaseGridRenderer implements GridRendererInterface
     protected function createFooter(GridFooter $footer): HTMLTag;
     protected function renderHeaderCells(array $columns): string|StringableInterface;
     protected function createStandardRow(StandardRow $row, array $columns): HTMLTag;
+    public function renderStandardRowCells(StandardRow $row, array $columns): string|StringableInterface;
     protected function createMergedRow(MergedRow $row, int $colspan): HTMLTag;
     protected function createMergedRowCell(MergedRow $row, int $colspan): HTMLTag;
     protected function createRowCell(RegularCell $cell): HTMLTag;
+
+    // Colspan helper (WP-002)
+    // Returns countColumns() + 1 when actions are defined, countColumns() otherwise.
+    protected function getColspan(): int;
+
+    // Selection cell rendering (WP-002)
+    public function renderSelectionHeaderCell(): string|StringableInterface;
+    protected function createSelectionHeaderCell(): HTMLTag;
+    public function renderSelectionCell(SelectionCell $cell): string|StringableInterface;
+    protected function createSelectionCell(SelectionCell $cell): HTMLTag;
+
+    // Pagination rendering (WP-005)
+    public function renderPaginationRow(GridPagination $pagination): string|StringableInterface;
+    protected function createPaginationRow(GridPagination $pagination): HTMLTag;
+    protected function createPreviousLink(GridPagination $pagination): HTMLTag;
+    protected function createNextLink(GridPagination $pagination): HTMLTag;
+    protected function createPageLink(int $page, string $url, bool $isCurrent): HTMLTag;
+    protected function createEllipsis(): HTMLTag;
+    // XSS-safe: $inputId and $urlTemplate are encoded with json_encode() before interpolation into the JS onclick string.
+    protected function createPageJumpInput(GridPagination $pagination): HTMLTag;
 }
 ```
 
@@ -425,6 +470,14 @@ class Bootstrap5Renderer extends BaseGridRenderer
     public function makeBordered(): self;
     public function makeCompact(): self;
     public function renderCustomRow(GridRowInterface $row, array $columns): string;
+
+    // Pagination (WP-005) — Bootstrap 5 override of BaseGridRenderer::renderPaginationRow()
+    // Produces <tr><td colspan><nav aria-label="Page navigation"><ul class="pagination">...
+    public function renderPaginationRow(GridPagination $pagination): string|StringableInterface;
+    // Private helpers (not overridable):
+    // createBootstrapPaginationRow(), createBootstrapPreviousItem(),
+    // createBootstrapNextItem(), createBootstrapPageItem(),
+    // createBootstrapEllipsisItem(), createBootstrapPageJumpInput()  ← XSS-safe via json_encode() (mirrors BaseGridRenderer)
 }
 ```
 
@@ -543,3 +596,90 @@ interface IDInterface
 ### `IDTrait`
 
 Implements `IDInterface`. Auto-generates an ID via `JSHelper::nextElementID()` when `requireID()` is called and no ID has been set.
+
+---
+
+## Pagination (`Pagination/`)
+
+### `PaginationInterface` (interface)
+
+Lean provider contract — only 4 methods. Derived values are computed by `GridPagination`.
+
+```php
+interface PaginationInterface
+{
+    public function getTotalItems(): int;
+    public function getItemsPerPage(): int;
+    public function getCurrentPage(): int;
+    public function getPageURL(int $page): string;
+}
+```
+
+### `GridPagination`
+
+Grid-side manager that wraps a `PaginationInterface` provider and computes derived pagination values.
+
+```php
+class GridPagination
+{
+    public const PAGE_SENTINEL = 999_999_999_999;  // public — usable by external pagination providers
+
+    public function __construct(DataGridInterface $grid);
+    public function getGrid(): DataGridInterface;
+
+    // Provider management
+    public function setProvider(PaginationInterface $provider): self;
+    public function getProvider(): PaginationInterface;  // throws DataGridException::ERROR_NO_PAGINATION_PROVIDER if unset
+    public function hasProvider(): bool;
+
+    // Computed properties
+    public function getTotalPages(): int;              // 0 when no items
+    public function getCurrentPage(): int;             // clamped to [1, getTotalPages()]
+    public function hasPreviousPage(): bool;
+    public function hasNextPage(): bool;
+    public function getPreviousPageURL(): string;      // ⚠ no bounds guard — caller must check hasPreviousPage() first
+    public function getNextPageURL(): string;          // ⚠ no bounds guard — caller must check hasNextPage() first
+    public function getPageURL(int $page): string;
+    public function getPageNumbers(): array;           // array<int|null> with null ellipsis sentinels
+    public function getPageURLTemplate(): string;      // uses PAGE_SENTINEL (999_999_999_999) and replaces it with {PAGE}
+
+    // Page number range controls
+    public function setAdjacentCount(int $count): self; // ⚠ no validation — negative values produce undefined behaviour
+    public function setEdgeCount(int $count): self;     // ⚠ no validation — negative values produce undefined behaviour
+
+    // Jump-to-page
+    public function isPageJumpEnabled(): bool;
+    public function setPageJumpEnabled(bool $enabled): self;
+}
+```
+
+### `ArrayPagination` — `Pagination\Types\ArrayPagination`
+
+Array-backed pagination provider. Slices a full array to the requested page.
+
+```php
+class ArrayPagination implements PaginationInterface
+{
+    /**
+     * @param array<mixed> $items
+     */
+    public function __construct(
+        array $items,
+        int $itemsPerPage = 25,
+        ?int $currentPage = null,   // reads $_GET[$pageParam] when null
+        string $pageParam = 'page'
+    );
+
+    // PaginationInterface
+    public function getTotalItems(): int;
+    public function getItemsPerPage(): int;
+    public function getCurrentPage(): int;   // clamped to valid range
+    public function getPageURL(int $page): string;  // rewrites REQUEST_URI query string — root-relative only (no scheme/host)
+
+    // Slicing
+    public function getSlicedItems(): array;  // array<mixed>
+
+    // Helpers
+    public function getPageParameterName(): string;
+}
+```

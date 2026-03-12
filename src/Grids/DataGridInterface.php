@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace AppUtils\Grids;
 
+use AppUtils\Grids\Actions\GridActions;
 use AppUtils\Grids\Columns\ColumnManager;
+use AppUtils\Grids\Pagination\GridPagination;
 use AppUtils\Grids\Columns\GridColumnInterface;
 use AppUtils\Grids\Options\GridOptions;
 use AppUtils\Grids\Rows\RowManager;
@@ -17,6 +19,10 @@ interface DataGridInterface extends RenderableInterface, ClassableInterface
     public const SORT_DESC = 'DESC';
 
     public function getID(): string;
+    public function actions(): GridActions;
+    public function hasActions(): bool;
+    public function processActions(): bool;
+    public function pagination(): GridPagination;
     public function options() : GridOptions;
     public function columns(): ColumnManager;
     public function rows(): RowManager;

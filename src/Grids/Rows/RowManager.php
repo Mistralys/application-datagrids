@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace AppUtils\Grids\Rows;
 
-use AppUtils\Grids\DataGrid;
+use AppUtils\Grids\DataGridInterface;
 use AppUtils\Grids\Rows\Types\HeaderRow;
 use AppUtils\Grids\Rows\Types\MergedRow;
 use WebcomicsBuilder\Grids\Rows\Types\StandardRow;
@@ -15,14 +15,14 @@ class RowManager
      * @var GridRowInterface[]
      */
     private array $rows = array();
-    private DataGrid $grid;
+    private DataGridInterface $grid;
 
-    public function __construct(DataGrid $grid)
+    public function __construct(DataGridInterface $grid)
     {
         $this->grid = $grid;
     }
 
-    public function getGrid(): DataGrid
+    public function getGrid(): DataGridInterface
     {
         return $this->grid;
     }

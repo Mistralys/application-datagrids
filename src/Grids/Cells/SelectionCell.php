@@ -5,28 +5,36 @@ declare(strict_types=1);
 namespace AppUtils\Grids\Cells;
 
 use AppUtils\HTMLTag;
-use AppUtils\JSHelper;
+use WebcomicsBuilder\Grids\Rows\Types\StandardRow;
 
-class SelectionCell extends BaseCell
+/**
+ * A checkbox cell prepended to each selectable row.
+ *
+ * Unlike regular cells this cell is not associated with any grid column; it
+ * therefore does not extend BaseCell or implement GridCellInterface.
+ * The renderer accesses it directly via StandardRow::getSelectionCell().
+ */
+class SelectionCell
 {
-    private string $id;
+    private StandardRow $row;
 
-    protected function init(): void
+    public function __construct(StandardRow $row)
     {
-        $this->id = 'gc'.JSHelper::nextElementID();
+        $this->row = $row;
     }
 
-    public function getID() : string
+    public function getRow(): StandardRow
     {
-        return $this->id;
+        return $this->row;
     }
 
     public function renderContent(): string
     {
+        $actions = $this->row->getGrid()->actions();
+
         return (string)HTMLTag::create('input')
-            ->id($this->getID())
             ->attr('type', 'checkbox')
-            ->attr('name', 'selected[]')
-            ->attr('value', $this->getRow()->getSelectValue());
+            ->attr('name', $actions->getFormSelectionFieldName() . '[]')
+            ->attr('value', $this->row->getSelectValue());
     }
 }

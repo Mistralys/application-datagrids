@@ -5,12 +5,13 @@ declare(strict_types=1);
 namespace AppUtils\Grids\Renderer;
 
 use AppUtils\Grids\Actions\GridActions;
-use AppUtils\Grids\Actions\Type\GridActionInterface;
 use AppUtils\Grids\Actions\Type\RegularAction;
 use AppUtils\Grids\Actions\Type\SeparatorAction;
 use AppUtils\Grids\Cells\RegularCell;
+use AppUtils\Grids\Cells\SelectionCell;
 use AppUtils\Grids\Columns\GridColumnInterface;
 use AppUtils\Grids\DataGridInterface;
+use AppUtils\Grids\Pagination\GridPagination;
 use AppUtils\Grids\Footer\GridFooter;
 use AppUtils\Grids\Form\GridForm;
 use AppUtils\Grids\Header\GridHeader;
@@ -84,7 +85,7 @@ abstract class BaseGridRenderer implements GridRendererInterface
 
         foreach($rows as $row) {
             if($row instanceof MergedRow) {
-                $content .= $this->renderMergedRow($row, $this->grid->columns()->countColumns());
+                $content .= $this->renderMergedRow($row, $this->getColspan());
             } else if($row instanceof StandardRow) {
                 $content .= $this->renderStandardRow($row, $columns);
             } else {
@@ -193,7 +194,15 @@ abstract class BaseGridRenderer implements GridRendererInterface
             return '';
         }
 
-        $select = HTMLTag::create('select');
+        $placeholder = HTMLTag::create('option')
+            ->attr('value', '')
+            ->attr('disabled', 'disabled')
+            ->attr('selected', 'selected')
+            ->setContent('Select action…');
+
+        $select = HTMLTag::create('select')
+            ->attr('name', $actions->getFormActionFieldName())
+            ->appendContent($placeholder);
 
         foreach($items as $item) {
             if($item instanceof SeparatorAction) {
@@ -207,10 +216,15 @@ abstract class BaseGridRenderer implements GridRendererInterface
             }
         }
 
+        $button = HTMLTag::create('button')
+            ->attr('type', 'submit')
+            ->setContent('Apply');
+
         return HTMLTag::create('tr')
             ->setContent(HTMLTag::create('td')
-                ->attr('colspan', $this->grid->columns()->countColumns())
-                ->setContent($select));
+                ->attr('colspan', (string)$this->getColspan())
+                ->appendContent($select)
+                ->appendContent($button));
     }
 
     public function renderSeparatorAction(SeparatorAction $action) : string|StringableInterface
@@ -234,6 +248,10 @@ abstract class BaseGridRenderer implements GridRendererInterface
     protected function renderHeaderCells(array $columns) : string|StringableInterface
     {
         $output = '';
+
+        if ($this->grid->hasActions()) {
+            $output .= $this->renderSelectionHeaderCell();
+        }
 
         foreach($columns as $column) {
             $output .= $this->renderHeaderCell($column);
@@ -276,6 +294,9 @@ abstract class BaseGridRenderer implements GridRendererInterface
 
         if($row->isSelectable()) {
             $cell = $row->getSelectionCell();
+            if ($cell !== null) {
+                $output .= $this->renderSelectionCell($cell);
+            }
         }
 
         foreach($columns as $column) {
@@ -331,5 +352,168 @@ abstract class BaseGridRenderer implements GridRendererInterface
         }
 
         return $tag;
+    }
+
+    // =========================================================================
+    // Colspan helper (WP-002)
+    // =========================================================================
+
+    protected function getColspan(): int
+    {
+        $count = $this->grid->columns()->countColumns();
+
+        if ($this->grid->hasActions()) {
+            $count++;
+        }
+
+        return $count;
+    }
+
+    // =========================================================================
+    // Selection cell rendering (WP-002)
+    // =========================================================================
+
+    public function renderSelectionHeaderCell(): string|StringableInterface
+    {
+        return $this->createSelectionHeaderCell();
+    }
+
+    protected function createSelectionHeaderCell(): HTMLTag
+    {
+        $gridId = $this->grid->getID();
+        $checkboxId = 'grid-' . $gridId . '-select-all';
+
+        return HTMLTag::create('th')
+            ->setContent(
+                HTMLTag::create('input')
+                    ->attr('type', 'checkbox')
+                    ->id($checkboxId)
+                    ->attr('onclick', "this.closest('table').querySelectorAll('input[name=\"selected[]\"]').forEach(cb => cb.checked = this.checked)")
+            );
+    }
+
+    public function renderSelectionCell(SelectionCell $cell): string|StringableInterface
+    {
+        return $this->createSelectionCell($cell);
+    }
+
+    protected function createSelectionCell(SelectionCell $cell): HTMLTag
+    {
+        return HTMLTag::create('td')
+            ->setContent($cell->renderContent());
+    }
+
+    // =========================================================================
+    // Pagination rendering (WP-005)
+    // =========================================================================
+
+    public function renderPaginationRow(GridPagination $pagination): string|StringableInterface
+    {
+        if (!$pagination->hasProvider() || $pagination->getTotalPages() <= 1) {
+            return '';
+        }
+
+        return $this->createPaginationRow($pagination);
+    }
+
+    protected function createPaginationRow(GridPagination $pagination): HTMLTag
+    {
+        $nav = HTMLTag::create('nav')
+            ->appendContent($this->createPreviousLink($pagination));
+
+        foreach ($pagination->getPageNumbers() as $page) {
+            if ($page === null) {
+                $nav->appendContent($this->createEllipsis());
+            } else {
+                $isCurrent = $page === $pagination->getCurrentPage();
+                $url = $isCurrent ? '' : $pagination->getPageURL($page);
+                $nav->appendContent($this->createPageLink($page, $url, $isCurrent));
+            }
+        }
+
+        $nav->appendContent($this->createNextLink($pagination));
+
+        $td = HTMLTag::create('td')
+            ->attr('colspan', (string)$this->getColspan())
+            ->appendContent($nav);
+
+        if ($pagination->isPageJumpEnabled()) {
+            $td->appendContent($this->createPageJumpInput($pagination));
+        }
+
+        return HTMLTag::create('tr')
+            ->setContent($td);
+    }
+
+    protected function createPreviousLink(GridPagination $pagination): HTMLTag
+    {
+        if (!$pagination->hasPreviousPage()) {
+            return HTMLTag::create('span')
+                ->addClass('disabled')
+                ->setContent('Previous');
+        }
+
+        return HTMLTag::create('a')
+            ->attr('href', $pagination->getPreviousPageURL())
+            ->setContent('Previous');
+    }
+
+    protected function createNextLink(GridPagination $pagination): HTMLTag
+    {
+        if (!$pagination->hasNextPage()) {
+            return HTMLTag::create('span')
+                ->addClass('disabled')
+                ->setContent('Next');
+        }
+
+        return HTMLTag::create('a')
+            ->attr('href', $pagination->getNextPageURL())
+            ->setContent('Next');
+    }
+
+    protected function createPageLink(int $page, string $url, bool $isCurrent): HTMLTag
+    {
+        if ($isCurrent) {
+            return HTMLTag::create('span')
+                ->addClass('current-page')
+                ->setContent((string)$page);
+        }
+
+        return HTMLTag::create('a')
+            ->attr('href', $url)
+            ->setContent((string)$page);
+    }
+
+    protected function createEllipsis(): HTMLTag
+    {
+        return HTMLTag::create('span')
+            ->addClass('pagination-ellipsis')
+            ->setContent('…');
+    }
+
+    protected function createPageJumpInput(GridPagination $pagination): HTMLTag
+    {
+        $gridId = $this->grid->getID();
+        $inputId = 'grid-' . $gridId . '-page-jump';
+        $totalPages = $pagination->getTotalPages();
+        $urlTemplate = $pagination->getPageURLTemplate();
+        $encodedUrlTemplate = json_encode($urlTemplate);
+        $encodedInputId = json_encode($inputId);
+
+        $js = "var p = document.getElementById({$encodedInputId}).value; window.location.href = {$encodedUrlTemplate}.replace('{PAGE}', p)";
+
+        $input = HTMLTag::create('input')
+            ->attr('type', 'number')
+            ->attr('min', '1')
+            ->attr('max', (string)$totalPages)
+            ->id($inputId);
+
+        $button = HTMLTag::create('button')
+            ->attr('onclick', $js)
+            ->setContent('Go');
+
+        return HTMLTag::create('span')
+            ->appendContent($input)
+            ->appendContent($button);
     }
 }

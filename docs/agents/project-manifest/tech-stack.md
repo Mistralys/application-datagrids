@@ -20,7 +20,7 @@
 
 | Package | Version | Purpose |
 |---|---|---|
-| `phpunit/phpunit` | ^13.0 | Unit testing |
+| `phpunit/phpunit` | ^12.0 | Unit testing |
 | `phpstan/phpstan` | ^2.1 | Static analysis |
 | `phpstan/phpstan-phpunit` | ^2.0 | PHPStan extension for PHPUnit |
 | `roave/security-advisories` | dev-latest | Security vulnerability checks |

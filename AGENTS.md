@@ -110,7 +110,7 @@ test-filter    → php vendor/bin/phpunit --no-progress --filter
 test-group     → php vendor/bin/phpunit --no-progress --group
 ```
 
-> **Note:** No test files exist yet. The `test` commands will succeed but run zero tests.
+> **Note:** 47 tests exist: 33 pagination (22 `GridPaginationTest` + 11 `ArrayPaginationTest`), 7 action (`GridActionsTest`), 5 row (`StandardRowTest`), 2 cell (`SelectionCellTest`).
 
 ---
 
@@ -123,7 +123,7 @@ test-group     → php vendor/bin/phpunit --no-progress --group
 | **Root namespace** | `AppUtils\Grids` |
 | **Package manager** | Composer |
 | **Autoloading** | `classmap` (not PSR-4) — run `composer dump-autoload` after structural changes |
-| **Test framework** | PHPUnit 13 (no tests written yet) |
+| **Test framework** | PHPUnit 12 (47 tests: 33 pagination + 7 action + 5 row + 2 cell) |
 | **Static analysis** | PHPStan level 6 (`phpstan.neon`) |
 | **License** | MIT |
 | **Status** | Work in progress |

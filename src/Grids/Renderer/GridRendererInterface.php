@@ -8,6 +8,8 @@ use AppUtils\Grids\Actions\GridActions;
 use AppUtils\Grids\Actions\Type\RegularAction;
 use AppUtils\Grids\Actions\Type\SeparatorAction;
 use AppUtils\Grids\Cells\RegularCell;
+use AppUtils\Grids\Cells\SelectionCell;
+use AppUtils\Grids\Pagination\GridPagination;
 use AppUtils\Grids\Columns\GridColumnInterface;
 use AppUtils\Grids\Footer\GridFooter;
 use AppUtils\Grids\Form\GridForm;
@@ -70,4 +72,7 @@ interface GridRendererInterface
      */
     public function renderCustomRow(GridRowInterface $row, array $columns): string|StringableInterface;
     public function renderRowCell(RegularCell $cell): string|StringableInterface;
+    public function renderSelectionCell(SelectionCell $cell): string|StringableInterface;
+    public function renderSelectionHeaderCell(): string|StringableInterface;
+    public function renderPaginationRow(GridPagination $pagination): string|StringableInterface;
 }

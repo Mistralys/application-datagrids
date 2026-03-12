@@ -2,82 +2,74 @@
 
 declare(strict_types=1);
 
-namespace AppUtils\Examples\Grids;
+require_once __DIR__ . '/bootstrap.php';
 
 use AppUtils\Grids\DataGrid;
 
-require_once __DIR__.'/bootstrap.php';
+$feedback = null;
 
-$grid = DataGrid::create();
-
-// Select and configure the renderer
+// 1. Create grid + Bootstrap 5 renderer
+$grid = DataGrid::create('actions-demo');
 $grid->renderer()
     ->selectBootstrap5()
     ->makeBordered()
     ->makeHover();
 
-$grid->columns()
-    ->add('id', 'ID')
-    ->setNowrap()
-    ->setCompact()
-    ->alignRight();
+// 2. Define columns
+$grid->columns()->add('id', '#')->setCompact()->alignRight();
+$grid->columns()->add('label', 'Label');
+$grid->columns()->add('status', 'Status');
 
-$grid->columns()
-    ->add('label', 'Label')
-    ->setWidth('50%');
+// 3. Set the value column (primary key for selection)
+$grid->actions()->setValueColumn($grid->columns()->getByName('id'));
 
-$grid->columns()
-    ->add('actions', 'Actions')
-    ->alignRight();
-
-$grid->rows()->addArrays(array(
-    array(
-        'id' => 1,
-        'label' => 'First row',
-        'actions' => '<button class="btn btn-secondary">Action</button>',
-    ),
-    array(
-        'id' => 2,
-        'label' => 'Second row',
-        'actions' => '<button class="btn btn-secondary">Action</button>',
-    ),
-    array(
-        'id' => 3,
-        'label' => 'Third row',
-        'actions' => '<button class="btn btn-secondary">Action</button>',
-    ),
-));
-
-$grid->rows()->addMerged('Merged row');
-
-$grid->actions()->setValueColumn('id');
-
-$grid->actions()->add('delete', 'Delete');
+// 4. Register actions with callbacks
+$grid->actions()
+    ->add('delete', 'Delete selected')
+    ->setCallback(function (array $ids) use (&$feedback): void {
+        $feedback = 'Deleted items: ' . implode(', ', $ids);
+    });
 
 $grid->actions()->separator();
 
-$grid->actions()->add('polish', 'Polish');
+$grid->actions()
+    ->add('archive', 'Archive selected')
+    ->setCallback(function (array $ids) use (&$feedback): void {
+        $feedback = 'Archived items: ' . implode(', ', $ids);
+    });
 
-function multiDelete()
-{
+// 5. Add sample data rows
+$rows = [
+    ['id' => 1,  'label' => 'Alpha',   'status' => 'Active'],
+    ['id' => 2,  'label' => 'Beta',    'status' => 'Inactive'],
+    ['id' => 3,  'label' => 'Gamma',   'status' => 'Active'],
+    ['id' => 4,  'label' => 'Delta',   'status' => 'Pending'],
+    ['id' => 5,  'label' => 'Epsilon', 'status' => 'Active'],
+    ['id' => 6,  'label' => 'Zeta',    'status' => 'Inactive'],
+    ['id' => 7,  'label' => 'Eta',     'status' => 'Active'],
+    ['id' => 8,  'label' => 'Theta',   'status' => 'Pending'],
+    ['id' => 9,  'label' => 'Iota',    'status' => 'Active'],
+    ['id' => 10, 'label' => 'Kappa',   'status' => 'Inactive'],
+];
 
-}
+$grid->rows()->addArrays($rows);
 
-?><!doctype html>
+// Process submitted actions before any HTML output,
+// so that the callback has a chance to set $feedback.
+$grid->processActions();
+?><!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Bootstrap 5 grid example</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Grid Actions Example</title>
     <link rel="stylesheet" href="../vendor/twbs/bootstrap/dist/css/bootstrap.min.css">
-    <style>
-        BODY{
-            padding: 2rem;
-        }
-    </style>
 </head>
-<body>
-<main class="container">
-    <h1>Bootstrap 5 grid</h1>
-    <?php echo $grid; ?>
-</main>
+<body class="p-4">
+<h1>Grid Actions Example</h1>
+<?php if ($feedback !== null): ?>
+    <div class="alert alert-success"><?= htmlspecialchars($feedback) ?></div>
+<?php endif; ?>
+<?= $grid ?>
 </body>
 </html>

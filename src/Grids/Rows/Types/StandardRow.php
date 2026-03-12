@@ -7,6 +7,7 @@ namespace WebcomicsBuilder\Grids\Rows\Types;
 use AppUtils\Grids\Cells\RegularCell;
 use AppUtils\Grids\Cells\SelectionCell;
 use AppUtils\Grids\Columns\GridColumnInterface;
+use AppUtils\Grids\DataGridException;
 use AppUtils\Grids\DataGridInterface;
 use AppUtils\Grids\Rows\BaseGridRow;
 use AppUtils\Grids\Rows\GridRowInterface;
@@ -19,6 +20,7 @@ class StandardRow extends BaseGridRow
      */
     private array $cells = array();
     private RowManager $manager;
+    private ?SelectionCell $selectionCell = null;
 
     /**
      * @param array<string, mixed> $values
@@ -83,12 +85,37 @@ class StandardRow extends BaseGridRow
         return $this->manager->getGrid()->actions()->hasActions();
     }
 
-    public function getSelectionCell() : ?SelectionCell
+    public function getSelectValue(): string
     {
-
+        $column = $this->manager->getGrid()->actions()->getValueColumn();
+        if ($column === null) {
+            return '';
+        }
+        return (string)$this->getCell($column)->getValue();
     }
 
-    public function getGrid() : DataGridInterface
+    public function getSelectionCell(): ?SelectionCell
+    {
+        if (!$this->isSelectable()) {
+            return null;
+        }
+
+        if ($this->getSelectValue() === '') {
+            throw new DataGridException(
+                'DataGrid: Row selection is active but no value column is configured. '
+                . 'Call $grid->actions()->setValueColumn() before rendering.',
+                null,
+                DataGridException::ERROR_NO_VALUE_COLUMN
+            );
+        }
+
+        if ($this->selectionCell === null) {
+            $this->selectionCell = new SelectionCell($this);
+        }
+        return $this->selectionCell;
+    }
+
+    public function getGrid(): DataGridInterface
     {
         return $this->manager->getGrid();
     }
