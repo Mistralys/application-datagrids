@@ -9,3 +9,4 @@ composer.phar
 .idea/copilot.data.migration.ask2agent.xml
 .idea/copilot.data.migration.ask.xml
 .idea/copilot.data.migration.agent.xml
+.phpunit.cache/test-results
