@@ -11,3 +11,5 @@ composer.phar
 .idea/copilot.data.migration.agent.xml
 .phpunit.cache/test-results
 .phpunit.result.cache
+/docs/agents/**/work/
+/docs/agents/**/work.md
