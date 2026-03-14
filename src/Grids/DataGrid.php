@@ -91,6 +91,9 @@ class DataGrid implements DataGridInterface
         if($headerRow !== null) {
             echo $renderer->renderHeaderRow($headerRow, $columns);
         }
+        if (isset($this->pagination) && $this->pagination->hasProvider() && $this->pagination->isShowAtTop()) {
+            echo $renderer->renderPaginationRow($this->pagination);
+        }
         echo $renderer->renderHeaderBottom($this->header);
 
         echo $renderer->renderFooterTop($this->footer);

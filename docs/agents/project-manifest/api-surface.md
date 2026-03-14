@@ -737,6 +737,10 @@ class GridPagination
     // Jump-to-page
     public function isPageJumpEnabled(): bool;
     public function setPageJumpEnabled(bool $enabled): self;
+
+    // Show at top — renders pagination row inside <thead> in addition to the default <tfoot> position
+    public function isShowAtTop(): bool;
+    public function setShowAtTop(bool $showAtTop = true): self;
 }
 ```
 

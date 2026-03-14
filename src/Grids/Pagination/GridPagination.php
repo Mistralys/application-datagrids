@@ -24,6 +24,7 @@ class GridPagination
     private int $adjacentCount = 2;
     private int $edgeCount = 2;
     private bool $pageJumpEnabled = true;
+    private bool $showAtTop = false;
 
     private DataGridInterface $grid;
 
@@ -211,6 +212,21 @@ class GridPagination
     public function setPageJumpEnabled(bool $enabled): self
     {
         $this->pageJumpEnabled = $enabled;
+        return $this;
+    }
+
+    // -------------------------------------------------------------------------
+    // Show at top
+    // -------------------------------------------------------------------------
+
+    public function isShowAtTop(): bool
+    {
+        return $this->showAtTop;
+    }
+
+    public function setShowAtTop(bool $showAtTop = true): self
+    {
+        $this->showAtTop = $showAtTop;
         return $this;
     }
 
