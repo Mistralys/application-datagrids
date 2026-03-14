@@ -5,15 +5,16 @@ application-datagrids/
 ├── composer.json                          # Package definition, dependencies, scripts
 ├── LICENSE                                # MIT license
 ├── phpstan.neon                           # PHPStan config (level 6, src/)
-├── phpunit.xml.dist                       # PHPUnit config (testsuite → tests/, failOnWarning=true)
+├── phpunit.xml                            # PHPUnit config (testsuite → tests/, failOnWarning=true; named suites: Settings, Storage, and the pre-existing suites)
 ├── README.md                              # Project overview & setup instructions
 │
 ├── examples/                              # Runnable example pages (serve via webserver)
-│   ├── bootstrap.php                      # Autoloader bootstrap for examples
-│   ├── 1-simple-grid.php                  # Plain HTML table grid
-│   ├── 2-bootstrap-grid.php              # Bootstrap 5 styled grid
-│   ├── 3-grid-actions.php                # Grid with row actions (select + dropdown)
-│   └── 4-pagination.php                  # Pagination with ArrayPagination (Bootstrap 5)
+│   ├── bootstrap.php                      # Autoloader + shared JsonFileStorage bootstrap (exposes $storage to all examples)
+│   ├── 1-simple-grid.php                  # Plain HTML table grid (grid ID: simple-grid)
+│   ├── 2-bootstrap-grid.php              # Bootstrap 5 styled grid (grid ID: bootstrap-grid)
+│   ├── 3-grid-actions.php                # Grid with row actions (grid ID: actions-demo)
+│   ├── 4-pagination.php                  # Pagination with ArrayPagination (grid ID: pagination-demo)
+│   └── storage/                           # [auto-created] Per-example JSON settings files; .gitignore prevents *.json from being committed
 │
 ├── src/
 │   └── Grids/
@@ -67,6 +68,14 @@ application-datagrids/
 │       │   ├── SortManager.php            # Resolves sort state from $_GET, builds sort URLs, sorts rows in-place
 │       │   └── SortManagerInterface.php   # Public contract for sort state management
 │       │
+│       ├── Settings/                      # Typed accessors for per-grid settings (wraps GridStorageInterface)
+│       │   └── GridSettings.php           # getItemsPerPage / setItemsPerPage; key 'items_per_page'
+│       │
+│       ├── Storage/                       # Per-grid persistent key-value settings storage
+│       │   ├── GridStorageInterface.php   # Storage contract: get(gridID, key, default) and set(gridID, key, value)
+│       │   └── Types/
+│       │       └── JsonFileStorage.php    # File-backed implementation — {storagePath}/{gridID}.json, per-request memory cache, path-traversal-safe via validateGridID()
+│       │
 │       ├── Renderer/                      # Pluggable rendering system
 │       │   ├── BaseGridRenderer.php       # Abstract renderer with full default HTML output
 │       │   ├── GridRendererInterface.php  # Renderer contract
@@ -94,8 +103,10 @@ application-datagrids/
 ├── vendor/                                # [auto-generated] Composer dependencies
 │   └── ...
 │
-├── tests/                                 # PHPUnit test suite (78 tests, 179 assertions)
-│   ├── bootstrap.php                      # Test bootstrap (requires vendor/autoload.php)
+├── tests/                                 # PHPUnit test suite (91 tests, 197 assertions)
+│   ├── bootstrap.php                      # Test bootstrap — requires vendor/autoload.php; glob-loads TestClasses/ so shared helpers are available to all suites
+│   ├── TestClasses/                       # Shared test helper classes (glob-loaded by bootstrap.php; not in Composer classmap — deferred to WP-008)
+│   │   └── InMemoryStorage.php           # In-memory GridStorageInterface implementation for unit tests
 │   ├── Actions/                           # Tests for GridActions, action processing
 │   │   └── GridActionsTest.php            # 7 tests: processSubmittedActions() — no data, empty array, missing field, unknown action, separator, callback, no callback
 │   ├── Cells/                             # Tests for SelectionCell rendering
@@ -105,6 +116,10 @@ application-datagrids/
 │   │   └── ArrayPaginationTest.php        # 11 tests: slicing, URL params, totalItems, itemsPerPage, clamping
 │   ├── Rows/                              # Tests for StandardRow, row selection
 │   │   └── StandardRowTest.php            # 5 tests: getSelectValue (with/without column), isSelectable (with/without actions), throws DataGridException on empty value
+│   ├── Settings/                          # Tests for GridSettings typed accessor
+│   │   └── GridSettingsTest.php           # 6 tests: null default, explicit default, set/get roundtrip, fluent return, default override, per-gridID isolation
+│   ├── Storage/                           # Tests for JsonFileStorage (file-backed storage implementation)
+│   │   └── JsonFileStorageTest.php        # 7 tests: read/write round-trip, default fallback (value and null), file creation on first write, multiple keys per grid, multiple grids isolated, directory creation
 │   └── Sorting/                           # Tests for SortManager, column sorting, renderer header cells
 │       ├── ColumnSortingTest.php          # 18 tests: sortable flags, getSortColumn/getSortDir resolution, native/callback/manual row sorting, getSortURL toggling, merged-row position preservation
 │       ├── SortManagerTest.php            # 8 tests: sortRows() native ASC/DESC, callback ASC/DESC (negation), manual no-op, no-sort-column no-op, MergedRow preservation, numeric native sort

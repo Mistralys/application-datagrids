@@ -7,6 +7,7 @@ namespace AppUtils\Tests\Pagination;
 use AppUtils\Grids\DataGrid;
 use AppUtils\Grids\Pagination\GridPagination;
 use AppUtils\Grids\Pagination\PaginationInterface;
+use AppUtils\Tests\TestClasses\InMemoryStorage;
 use PHPUnit\Framework\TestCase;
 
 class GridPaginationTest extends TestCase
@@ -194,7 +195,7 @@ class GridPaginationTest extends TestCase
     {
         $provider = $this->createStubProvider($totalItems, $itemsPerPage, $currentPage);
 
-        $grid = DataGrid::create('test-grid');
+        $grid = DataGrid::create('test-grid', new InMemoryStorage());
         $grid->pagination()->setProvider($provider);
 
         return $grid->pagination();

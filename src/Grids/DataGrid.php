@@ -16,7 +16,9 @@ use AppUtils\Grids\Renderer\RendererManager;
 use AppUtils\Grids\Rows\GridRowInterface;
 use AppUtils\Grids\Rows\RowManager;
 use AppUtils\Grids\Rows\Types\MergedRow;
+use AppUtils\Grids\Settings\GridSettings;
 use AppUtils\Grids\Sorting\SortManagerInterface;
+use AppUtils\Grids\Storage\GridStorageInterface;
 use AppUtils\Traits\ClassableTrait;
 use AppUtils\Traits\RenderableBufferedTrait;
 
@@ -28,24 +30,26 @@ class DataGrid implements DataGridInterface
     protected ColumnManager $columns;
     protected RowManager $rows;
     protected GridOptions $options;
-    private int $instanceID;
-    private static int $instanceCounter = 0;
     private string $id;
+    private GridStorageInterface $storage;
+    private ?GridSettings $settings = null;
     private GridHeader $header;
     private GridFooter $footer;
     private GridForm $form;
     private RendererManager $rendererManager;
 
-    public function __construct(?string $id=null)
+    public function __construct(string $id, GridStorageInterface $storage)
     {
-        self::$instanceCounter++;
-        $this->instanceID = self::$instanceCounter;
-
-        if(empty($id)) {
-            $id = 'grid-'.$this->instanceID;
+        if (preg_match('/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/', $id) !== 1) {
+            throw new DataGridException(
+                sprintf('Invalid grid ID [%s]: must be a non-empty kebab-case string.', $id),
+                null,
+                DataGridException::ERROR_INVALID_GRID_ID
+            );
         }
 
         $this->id = $id;
+        $this->storage = $storage;
         $this->columns = new ColumnManager();
         $this->rows = new RowManager($this);
         $this->options = new GridOptions();
@@ -55,10 +59,24 @@ class DataGrid implements DataGridInterface
         $this->rendererManager = new RendererManager($this);
     }
 
-    public static function create(?string $id=null) : static
+    public static function create(string $id, GridStorageInterface $storage) : static
     {
         // @phpstan-ignore new.static
-        return new static($id);
+        return new static($id, $storage);
+    }
+
+    public function getStorage(): GridStorageInterface
+    {
+        return $this->storage;
+    }
+
+    public function settings(): GridSettings
+    {
+        if ($this->settings === null) {
+            $this->settings = new GridSettings($this->id, $this->storage);
+        }
+
+        return $this->settings;
     }
 
     public function getID(): string

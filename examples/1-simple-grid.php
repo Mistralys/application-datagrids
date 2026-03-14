@@ -2,13 +2,11 @@
 
 declare(strict_types=1);
 
-namespace AppUtils\Examples\Grids;
-
 use AppUtils\Grids\DataGrid;
 
 require_once __DIR__.'/bootstrap.php';
 
-$grid = DataGrid::create();
+$grid = DataGrid::create('simple-grid', $storage);
 
 $grid->columns()
     ->addInteger('id', 'ID');

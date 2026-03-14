@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AppUtils\Tests\Actions;
 
 use AppUtils\Grids\DataGrid;
+use AppUtils\Tests\TestClasses\InMemoryStorage;
 use PHPUnit\Framework\TestCase;
 
 class GridActionsTest extends TestCase
@@ -137,7 +138,7 @@ class GridActionsTest extends TestCase
      */
     private function createGrid(): DataGrid
     {
-        $grid = DataGrid::create('actions-test');
+        $grid = DataGrid::create('actions-test', new InMemoryStorage());
         $grid->columns()->add('id', 'ID');
         $grid->columns()->add('name', 'Name');
 

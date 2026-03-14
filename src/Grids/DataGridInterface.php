@@ -10,7 +10,9 @@ use AppUtils\Grids\Pagination\GridPagination;
 use AppUtils\Grids\Columns\GridColumnInterface;
 use AppUtils\Grids\Options\GridOptions;
 use AppUtils\Grids\Rows\RowManager;
+use AppUtils\Grids\Settings\GridSettings;
 use AppUtils\Grids\Sorting\SortManagerInterface;
+use AppUtils\Grids\Storage\GridStorageInterface;
 use AppUtils\Interfaces\ClassableInterface;
 use AppUtils\Interfaces\RenderableInterface;
 
@@ -20,6 +22,8 @@ interface DataGridInterface extends RenderableInterface, ClassableInterface
     public const SORT_DESC = 'DESC';
 
     public function getID(): string;
+    public function getStorage(): GridStorageInterface;
+    public function settings(): GridSettings;
     public function actions(): GridActions;
     public function hasActions(): bool;
     public function processActions(): bool;

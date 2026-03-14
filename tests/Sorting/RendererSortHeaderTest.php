@@ -7,6 +7,7 @@ namespace AppUtils\Tests\Sorting;
 use AppUtils\Grids\DataGrid;
 use AppUtils\Grids\DataGridInterface;
 use AppUtils\Grids\Renderer\Types\Bootstrap5Renderer;
+use AppUtils\Tests\TestClasses\InMemoryStorage;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -48,7 +49,7 @@ class RendererSortHeaderTest extends TestCase
         $_GET = [];
         $_SERVER['REQUEST_URI'] = '/grid';
 
-        $grid = DataGrid::create();
+        $grid = DataGrid::create('sort-header-test', new InMemoryStorage());
         $grid->columns()->add('name', 'Name');
         $grid->renderer()->selectDefault();
 
@@ -67,7 +68,7 @@ class RendererSortHeaderTest extends TestCase
         $_GET = [];
         $_SERVER['REQUEST_URI'] = '/grid';
 
-        $grid = DataGrid::create();
+        $grid = DataGrid::create('sort-header-test', new InMemoryStorage());
         $grid->columns()->add('name', 'Name')->useNativeSorting();
         $grid->renderer()->selectDefault();
 
@@ -87,7 +88,7 @@ class RendererSortHeaderTest extends TestCase
         $_GET['sort_dir'] = DataGridInterface::SORT_ASC;
         $_SERVER['REQUEST_URI'] = '/grid?sort=name&sort_dir=ASC';
 
-        $grid = DataGrid::create();
+        $grid = DataGrid::create('sort-header-test', new InMemoryStorage());
         $grid->columns()->add('name', 'Name')->useNativeSorting();
         $grid->renderer()->selectDefault();
 
@@ -112,7 +113,7 @@ class RendererSortHeaderTest extends TestCase
         $_GET = [];
         $_SERVER['REQUEST_URI'] = '/grid';
 
-        $grid = DataGrid::create();
+        $grid = DataGrid::create('sort-header-test', new InMemoryStorage());
         $grid->columns()->add('name', 'Name');
         $bs5 = $grid->renderer()->selectBootstrap5();
 
@@ -130,7 +131,7 @@ class RendererSortHeaderTest extends TestCase
         $_GET = [];
         $_SERVER['REQUEST_URI'] = '/grid';
 
-        $grid = DataGrid::create();
+        $grid = DataGrid::create('sort-header-test', new InMemoryStorage());
         $grid->columns()->add('name', 'Name')->useNativeSorting();
         $bs5 = $grid->renderer()->selectBootstrap5();
 

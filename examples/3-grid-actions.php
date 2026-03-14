@@ -9,7 +9,7 @@ use AppUtils\Grids\DataGrid;
 $feedback = null;
 
 // 1. Create grid + Bootstrap 5 renderer
-$grid = DataGrid::create('actions-demo');
+$grid = DataGrid::create('actions-demo', $storage);
 $grid->renderer()
     ->selectBootstrap5()
     ->makeBordered()

@@ -6,6 +6,7 @@ namespace AppUtils\Tests\Rows;
 
 use AppUtils\Grids\DataGrid;
 use AppUtils\Grids\DataGridException;
+use AppUtils\Tests\TestClasses\InMemoryStorage;
 use PHPUnit\Framework\TestCase;
 
 class StandardRowTest extends TestCase
@@ -107,7 +108,7 @@ class StandardRowTest extends TestCase
 
     private function createGrid(): DataGrid
     {
-        $grid = DataGrid::create('row-test');
+        $grid = DataGrid::create('row-test', new InMemoryStorage());
         $grid->columns()->add('id', 'ID');
         $grid->columns()->add('name', 'Name');
 

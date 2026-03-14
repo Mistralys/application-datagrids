@@ -7,6 +7,7 @@ namespace AppUtils\Tests\Sorting;
 use AppUtils\Grids\DataGrid;
 use AppUtils\Grids\DataGridInterface;
 use AppUtils\Grids\Rows\Types\MergedRow;
+use AppUtils\Tests\TestClasses\InMemoryStorage;
 use PHPUnit\Framework\TestCase;
 use AppUtils\Grids\Rows\Types\StandardRow;
 
@@ -273,7 +274,7 @@ class SortManagerTest extends TestCase
 
     private function createGrid(): DataGrid
     {
-        $grid = DataGrid::create();
+        $grid = DataGrid::create('sort-manager-test', new InMemoryStorage());
         $grid->columns()->add('id', 'ID');
         $grid->columns()->add('name', 'Name');
         return $grid;

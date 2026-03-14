@@ -5,7 +5,7 @@
 | Item | Value |
 |---|---|
 | Language | PHP |
-| Min. PHP version | 8.4 (composer.json `require`; README states 8.2) |
+| Min. PHP version | 8.4 (composer.json `require`; README states 8.4) |
 | Package manager | Composer |
 | Autoloading | `classmap` (scans `src/`) — not PSR-4 |
 

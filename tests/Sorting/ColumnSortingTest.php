@@ -9,6 +9,7 @@ use AppUtils\Grids\DataGrid;
 use AppUtils\Grids\DataGridInterface;
 use AppUtils\Grids\Rows\Types\MergedRow;
 use AppUtils\Grids\Sorting\SortManager;
+use AppUtils\Tests\TestClasses\InMemoryStorage;
 use PHPUnit\Framework\TestCase;
 use AppUtils\Grids\Rows\Types\StandardRow;
 
@@ -364,7 +365,7 @@ class ColumnSortingTest extends TestCase
 
     private function createGrid(): DataGrid
     {
-        $grid = DataGrid::create();
+        $grid = DataGrid::create('column-sorting-test', new InMemoryStorage());
         $grid->columns()->add('id', 'ID');
         $grid->columns()->add('name', 'Name');
         return $grid;

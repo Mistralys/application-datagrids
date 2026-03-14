@@ -109,7 +109,7 @@ test-filter    → php vendor/bin/phpunit --no-progress --filter
 test-group     → php vendor/bin/phpunit --no-progress --group
 ```
 
-> **Test suites:** Pagination (`GridPaginationTest`, `ArrayPaginationTest`), Actions (`GridActionsTest`), Rows (`StandardRowTest`), Cells (`SelectionCellTest`), Sorting (`ColumnSortingTest`, `SortManagerTest`, `RendererSortHeaderTest`).
+> **Test suites:** Pagination (`GridPaginationTest`, `ArrayPaginationTest`), Actions (`GridActionsTest`), Rows (`StandardRowTest`), Cells (`SelectionCellTest`), Settings (`GridSettingsTest`), Sorting (`ColumnSortingTest`, `SortManagerTest`, `RendererSortHeaderTest`), Storage (`JsonFileStorageTest`).
 
 ---
 

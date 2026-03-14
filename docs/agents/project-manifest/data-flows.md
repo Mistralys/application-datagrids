@@ -5,10 +5,13 @@
 ```
 User code
   │
-  ├─ DataGrid::create(?id)
+  ├─ DataGrid::create(string $id, GridStorageInterface $storage)
   │    └─ constructor initializes:
+  │         $storage (required injection), $settings (null — lazy via settings()),
   │         ColumnManager, RowManager, GridOptions,
   │         GridHeader, GridFooter, GridForm, RendererManager
+  │    └─ throws DataGridException::ERROR_INVALID_GRID_ID (260301)
+  │         when $id does not match /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/
   │
   ├─ $grid->columns()->add('name', 'Label')     → DefaultColumn
   │   $grid->columns()->addInteger('id', 'ID')  → IntegerColumn
@@ -418,3 +421,64 @@ DataGrid::generateOutput()
            └─ Reassemble: $standardRows written back into their original indices
               Non-standard rows remain at their original positions in $rows.
 ```
+
+---
+
+## 9. Grid Settings (Per-Grid Persistence)
+
+`DataGrid::settings()` lazily creates and returns a `GridSettings` instance tied to the grid's ID and storage handler.
+
+### Reading a setting (with fallback)
+
+```
+$grid->settings()
+  │
+  └─ DataGrid::settings()
+       └─ Lazy-creates GridSettings($this->id, $this->storage) on first call
+            └─ Subsequent calls return the same instance ($this->settings property)
+
+$grid->settings()->getItemsPerPage(?int $default = null): ?int
+  │
+  └─ GridSettings::getItemsPerPage($default)
+       └─ GridStorageInterface::get($gridID, 'items_per_page', $default)
+            ├─ JsonFileStorage: reads {storagePath}/{gridID}.json (memory-cached per request)
+            │    └─ Returns $data['items_per_page'] if present
+            │    └─ Returns $default if key absent or file not yet created
+            └─ Custom implementation: any lookup logic
+```
+
+### Writing a setting (fluent)
+
+```
+$grid->settings()->setItemsPerPage(int $value): self
+  │
+  └─ GridSettings::setItemsPerPage($value)
+       └─ GridStorageInterface::set($gridID, 'items_per_page', $value)
+            └─ JsonFileStorage: reads existing {gridID}.json → merges new key/value
+                 → json_encode → file_put_contents with LOCK_EX
+                 → updates in-memory cache ($this->cache[$gridID])
+```
+
+### Typical pagination integration pattern
+
+```
+// Page render:
+
+$itemsPerPage = $grid->settings()->getItemsPerPage(25);  // 25 = application default
+//   → reads storage; returns stored int or 25 if nothing persisted yet
+
+$provider = new ArrayPagination($allItems, $itemsPerPage);
+$grid->pagination()->setProvider($provider);
+$grid->rows()->addArrays($provider->getSlicedItems());
+
+echo $grid;
+
+// Optional — persist user-selected page size (e.g. from a submitted form):
+if (isset($_POST['items_per_page'])) {
+    $grid->settings()->setItemsPerPage((int)$_POST['items_per_page']);
+}
+```
+
+### Isolation guarantee
+
+Each `GridSettings` instance is scoped to one grid ID. Two grids on the same page sharing the same `JsonFileStorage` instance write to separate JSON files (`grid-a.json`, `grid-b.json`) and never interfere with each other.

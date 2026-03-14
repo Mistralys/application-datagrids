@@ -24,7 +24,7 @@ for ($i = 1; $i <= 200; $i++) {
 $pagination = new ArrayPagination($allItems, 15);
 
 // 3. Create the grid + Bootstrap 5 renderer
-$grid = DataGrid::create('pagination-demo');
+$grid = DataGrid::create('pagination-demo', $storage);
 $grid->renderer()
     ->selectBootstrap5()
     ->makeBordered()

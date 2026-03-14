@@ -4,9 +4,6 @@
          bootstrap="tests/bootstrap.php"
          colors="true">
     <testsuites>
-        <testsuite name="All">
-            <directory>tests</directory>
-        </testsuite>
         <testsuite name="Actions">
             <directory>tests/Actions</directory>
         </testsuite>
@@ -21,6 +18,12 @@
         </testsuite>
         <testsuite name="Sorting">
             <directory>tests/Sorting</directory>
+        </testsuite>
+        <testsuite name="Settings">
+            <directory>tests/Settings</directory>
+        </testsuite>
+        <testsuite name="Storage">
+            <directory>tests/Storage</directory>
         </testsuite>
     </testsuites>
 </phpunit>

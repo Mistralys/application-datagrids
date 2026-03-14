@@ -15,6 +15,8 @@ interface DataGridInterface extends RenderableInterface, ClassableInterface
     public const SORT_DESC = 'DESC';
 
     public function getID(): string;
+    public function getStorage(): GridStorageInterface;
+    public function settings(): GridSettings;
     public function options(): GridOptions;
     public function columns(): ColumnManager;
     public function rows(): RowManager;
@@ -35,9 +37,11 @@ class DataGrid implements DataGridInterface
 {
     // Traits: RenderableBufferedTrait, ClassableTrait
 
-    public function __construct(?string $id = null);
-    public static function create(?string $id = null): static;
+    public function __construct(string $id, GridStorageInterface $storage);
+    public static function create(string $id, GridStorageInterface $storage): static;
     public function getID(): string;
+    public function getStorage(): GridStorageInterface;
+    public function settings(): GridSettings;     // lazily creates GridSettings on first call
     public function options(): GridOptions;
     public function columns(): ColumnManager;
     public function rows(): RowManager;
@@ -62,6 +66,7 @@ class DataGridException extends BaseException
     public const ERROR_NO_PAGINATION_PROVIDER = 171700;
     public const ERROR_NO_VALUE_COLUMN = 171701;
     public const ERROR_NO_ROW_MANAGER = 171702;
+    public const int ERROR_INVALID_GRID_ID = 260301;   // thrown by DataGrid::__construct() and JsonFileStorage when $gridID fails validation
 }
 ```
 
@@ -421,6 +426,60 @@ class SortManager implements SortManagerInterface
     // Partitions StandardRow instances, sorts them in-place, preserves non-standard row positions.
     // No-op for Manual mode or when no sort column is active.
     public function sortRows(array &$rows): void; // @param GridRowInterface[] $rows
+}
+```
+
+---
+
+## Storage (`Storage/`)
+
+### `GridStorageInterface` (interface)
+
+Per-grid key-value storage contract. Keyed by `$gridID` (per-grid scope) and `$key` (per-setting name).
+
+> **Null storage:** `get()` uses the `??` operator — a `null` value stored via `set()` is indistinguishable from a missing key when retrieved with a non-null `$default`.
+
+```php
+interface GridStorageInterface
+{
+    public function get(string $gridID, string $key, mixed $default = null): mixed;
+    public function set(string $gridID, string $key, mixed $value): void;
+}
+```
+
+### `JsonFileStorage`
+
+File-backed implementation. Creates the storage directory recursively on construction if it does not exist. Each grid's data is stored as `{storagePath}/{gridID}.json`. Grid data is cached in memory per-request to avoid repeated disk reads.
+
+`$gridID` is validated on every path construction — must match `/^[a-zA-Z][a-zA-Z0-9\-_]*$/`. Throws `DataGridException::ERROR_INVALID_GRID_ID` (code `260301`) if the ID is invalid.
+
+```php
+class JsonFileStorage implements GridStorageInterface
+{
+    public function __construct(string $storagePath);
+    public function get(string $gridID, string $key, mixed $default = null): mixed;
+    public function set(string $gridID, string $key, mixed $value): void;
+    // Private helpers (not overridable):
+    // readGridData(string $gridID): array<string,mixed>  — reads/caches JSON from disk
+    // getFilePath(string $gridID): string                — calls validateGridID(); returns storagePath/gridID.json
+    // validateGridID(string $gridID): void               — throws DataGridException::ERROR_INVALID_GRID_ID on mismatch
+}
+```
+
+---
+
+## Settings (`Settings/`)
+
+### `GridSettings`
+
+Typed accessor wrapper over `GridStorageInterface`. Exposes known grid settings with IDE-friendly, type-safe getters and fluent setters.
+
+```php
+class GridSettings
+{
+    public function __construct(string $gridID, GridStorageInterface $storage); // no constructor property promotion
+    public function getItemsPerPage(?int $default = null): ?int;  // reads key 'items_per_page'; casts stored value to int
+    public function setItemsPerPage(int $value): self;            // writes key 'items_per_page'; returns $this (fluent)
 }
 ```
 
