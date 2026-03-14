@@ -73,7 +73,6 @@ Do NOT grep or scan the `src/` directory for information that is already documen
 | Missing documentation | Flag the gap explicitly, do not invent facts | MUST |
 | Untested code path | Proceed with caution, add a test recommendation | SHOULD |
 | Stub method encountered | Do not assume it works — check `constraints.md` stub inventory | MUST |
-| Namespace anomaly (`WebcomicsBuilder`) | Do not "fix" unless explicitly asked; see `constraints.md` | MUST |
 | `classmap` autoloading | Run `composer dump-autoload` after adding/renaming/moving files | MUST |
 | HTML output changes | Use `HTMLTag` from `application-utils-core`, never raw string concatenation | MUST |
 | New trait created | Always create a matching interface (`FooTrait` ↔ `FooInterface`) | MUST |
@@ -110,7 +109,7 @@ test-filter    → php vendor/bin/phpunit --no-progress --filter
 test-group     → php vendor/bin/phpunit --no-progress --group
 ```
 
-> **Note:** 47 tests exist: 33 pagination (22 `GridPaginationTest` + 11 `ArrayPaginationTest`), 7 action (`GridActionsTest`), 5 row (`StandardRowTest`), 2 cell (`SelectionCellTest`).
+> **Test suites:** Pagination (`GridPaginationTest`, `ArrayPaginationTest`), Actions (`GridActionsTest`), Rows (`StandardRowTest`), Cells (`SelectionCellTest`), Sorting (`ColumnSortingTest`, `SortManagerTest`, `RendererSortHeaderTest`).
 
 ---
 
@@ -123,7 +122,7 @@ test-group     → php vendor/bin/phpunit --no-progress --group
 | **Root namespace** | `AppUtils\Grids` |
 | **Package manager** | Composer |
 | **Autoloading** | `classmap` (not PSR-4) — run `composer dump-autoload` after structural changes |
-| **Test framework** | PHPUnit 12 (47 tests: 33 pagination + 7 action + 5 row + 2 cell) |
+| **Test framework** | PHPUnit 12 |
 | **Static analysis** | PHPStan level 6 (`phpstan.neon`) |
 | **License** | MIT |
 | **Status** | Work in progress |
