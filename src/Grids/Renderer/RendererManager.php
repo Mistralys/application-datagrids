@@ -5,16 +5,16 @@ declare(strict_types=1);
 namespace AppUtils\Grids\Renderer;
 
 use AppUtils\ClassHelper;
-use AppUtils\Grids\DataGrid;
+use AppUtils\Grids\DataGridInterface;
 use AppUtils\Grids\Renderer\Types\Bootstrap5Renderer;
 use AppUtils\Grids\Renderer\Types\DefaultRenderer;
 
 class RendererManager
 {
-    private DataGrid $grid;
+    private DataGridInterface $grid;
     private ?GridRendererInterface $renderer = null;
 
-    public function __construct(DataGrid $grid)
+    public function __construct(DataGridInterface $grid)
     {
         $this->grid = $grid;
     }
@@ -62,7 +62,7 @@ class RendererManager
     public function getRenderer(): GridRendererInterface
     {
         if($this->renderer === null) {
-            $this->selectDefault();
+            return $this->selectDefault();
         }
 
         return $this->renderer;

@@ -8,6 +8,11 @@ use AppUtils\Grids\Rows\BaseGridRow;
 
 class HeaderRow extends BaseGridRow
 {
+    public function isSelectable(): bool
+    {
+        return false;
+    }
+
     public function getRepeatedID() : ?string
     {
         $id = $this->getID();

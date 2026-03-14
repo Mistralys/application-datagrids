@@ -16,6 +16,7 @@ use AppUtils\Grids\Renderer\RendererManager;
 use AppUtils\Grids\Rows\GridRowInterface;
 use AppUtils\Grids\Rows\RowManager;
 use AppUtils\Grids\Rows\Types\MergedRow;
+use AppUtils\Grids\Sorting\SortManagerInterface;
 use AppUtils\Traits\ClassableTrait;
 use AppUtils\Traits\RenderableBufferedTrait;
 
@@ -56,6 +57,7 @@ class DataGrid implements DataGridInterface
 
     public static function create(?string $id=null) : static
     {
+        // @phpstan-ignore new.static
         return new static($id);
     }
 
@@ -74,6 +76,11 @@ class DataGrid implements DataGridInterface
         }
 
         $rows = $this->resolveRows();
+
+        if (isset($this->sortManager)) {
+            $this->sortManager->sortRows($rows);
+        }
+
         $headerRow = $this->rows->getHeaderRow();
         $columns = $this->columns->getColumns();
 
@@ -157,6 +164,7 @@ class DataGrid implements DataGridInterface
 
     private ?GridActions $actions = null;
     private ?GridPagination $pagination = null;
+    private ?SortManagerInterface $sortManager = null;
     private bool $actionsProcessed = false;
 
     public function actions() : GridActions
@@ -217,13 +225,22 @@ class DataGrid implements DataGridInterface
         return $this->pagination;
     }
 
-    public function getSortColumn() : ?GridColumnInterface
+    public function sorting(): SortManagerInterface
     {
+        if (!isset($this->sortManager)) {
+            $this->sortManager = new \AppUtils\Grids\Sorting\SortManager($this);
+        }
 
+        return $this->sortManager;
     }
 
-    public function getSortDir() : string
+    public function getSortColumn(): ?GridColumnInterface
     {
+        return $this->sorting()->getSortColumn();
+    }
 
+    public function getSortDir(): string
+    {
+        return $this->sorting()->getSortDir();
     }
 }

@@ -7,7 +7,7 @@ namespace AppUtils\Grids\Cells;
 use AppUtils\Grids\Columns\GridColumnInterface;
 use AppUtils\Grids\DataGridInterface;
 use AppUtils\Traits\ClassableTrait;
-use WebcomicsBuilder\Grids\Rows\Types\StandardRow;
+use AppUtils\Grids\Rows\Types\StandardRow;
 
 abstract class BaseCell implements GridCellInterface
 {

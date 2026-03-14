@@ -48,6 +48,8 @@ interface GridColumnInterface extends ClassableInterface, IDInterface, AlignInte
      */
     public function useCallbackSorting(callable $callback) : self;
     public function isSortable() : bool;
+    public function getSortMode() : ?SortMode;
+    public function getSortCallback() : ?\Closure;
     public function isCompact() : bool;
     public function setWidth(int|string|NumberInfo|NULL $width) : self;
     public function getWidth() : ?NumberInfo;

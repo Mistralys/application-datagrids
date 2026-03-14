@@ -21,6 +21,8 @@ abstract class BaseGridColumn implements GridColumnInterface
     private string $label;
     private bool $nowrap = false;
     private bool $compact = false;
+    private ?SortMode $sortMode = null;
+    private ?\Closure $sortCallback = null;
     private ?NumberInfo $width = null;
 
     /**
@@ -97,22 +99,38 @@ abstract class BaseGridColumn implements GridColumnInterface
 
     public function useNativeSorting(): self
     {
+        $this->sortMode = SortMode::Native;
+        $this->sortCallback = null;
+        return $this;
+    }
+
+    public function useCallbackSorting(callable $callback): self
+    {
+        $this->sortMode = SortMode::Callback;
+        $this->sortCallback = \Closure::fromCallable($callback);
+        return $this;
+    }
+
+    public function useManualSorting(): self
+    {
+        $this->sortMode = SortMode::Manual;
+        $this->sortCallback = null;
         return $this;
     }
 
     public function isSortable(): bool
     {
-        return $this->sortable;
+        return $this->sortMode !== null;
     }
 
-    public function useCallbackSorting(callable $callback): GridColumnInterface
+    public function getSortMode(): ?SortMode
     {
-        // TODO: Implement useCallbackSorting() method.
+        return $this->sortMode;
     }
 
-    public function useManualSorting(): GridColumnInterface
+    public function getSortCallback(): ?\Closure
     {
-        // TODO: Implement useManualSorting() method.
+        return $this->sortCallback;
     }
 
     public function setWidth(int|string|NumberInfo|NULL $width): self

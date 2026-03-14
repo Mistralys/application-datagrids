@@ -20,7 +20,7 @@ use AppUtils\Grids\Rows\Types\MergedRow;
 use AppUtils\Grids\Traits\AlignInterface;
 use AppUtils\HTMLTag;
 use AppUtils\Interfaces\StringableInterface;
-use WebcomicsBuilder\Grids\Rows\Types\StandardRow;
+use AppUtils\Grids\Rows\Types\StandardRow;
 
 abstract class BaseGridRenderer implements GridRendererInterface
 {
@@ -156,8 +156,13 @@ abstract class BaseGridRenderer implements GridRendererInterface
             ->id($column->getID())
             ->addClasses($column->getClasses())
             ->style('text-align', $column->getAlign() ?? AlignInterface::ALIGN_LEFT)
-            ->setEmptyAllowed()
-            ->setContent($column->getLabel());
+            ->setEmptyAllowed();
+
+        if ($column->isSortable()) {
+            $tag->setContent($this->createSortAnchor($column));
+        } else {
+            $tag->setContent($column->getLabel());
+        }
 
         if($column->isNowrap()) {
             $tag->style('white-space', 'nowrap');
@@ -168,6 +173,33 @@ abstract class BaseGridRenderer implements GridRendererInterface
         }
 
         return $tag;
+    }
+
+    /**
+     * @param GridColumnInterface $column
+     * @param string[] $extraClasses
+     * @return HTMLTag
+     */
+    protected function createSortAnchor(GridColumnInterface $column, array $extraClasses = []): HTMLTag
+    {
+        $sorting = $this->grid->sorting();
+
+        $link = HTMLTag::create('a')
+            ->attr('href', $sorting->getSortURL($column))
+            ->setContent($column->getLabel());
+
+        if (!empty($extraClasses)) {
+            $link->addClasses($extraClasses);
+        }
+
+        if ($sorting->isSortedBy($column)) {
+            $indicator = ($sorting->getSortDir() === DataGridInterface::SORT_ASC) ? '▲' : '▼';
+            $link->appendContent(
+                HTMLTag::create('span')->setContent($indicator)
+            );
+        }
+
+        return $link;
     }
 
     public function renderFooterTop(GridFooter $footer) : string|StringableInterface
@@ -497,8 +529,8 @@ abstract class BaseGridRenderer implements GridRendererInterface
         $inputId = 'grid-' . $gridId . '-page-jump';
         $totalPages = $pagination->getTotalPages();
         $urlTemplate = $pagination->getPageURLTemplate();
-        $encodedUrlTemplate = json_encode($urlTemplate);
-        $encodedInputId = json_encode($inputId);
+        $encodedUrlTemplate = json_encode($urlTemplate, JSON_THROW_ON_ERROR);
+        $encodedInputId = json_encode($inputId, JSON_THROW_ON_ERROR);
 
         $js = "var p = document.getElementById({$encodedInputId}).value; window.location.href = {$encodedUrlTemplate}.replace('{PAGE}', p)";
 
@@ -512,6 +544,11 @@ abstract class BaseGridRenderer implements GridRendererInterface
             ->attr('onclick', $js)
             ->setContent('Go');
 
+        return $this->createPageJumpContainer($input, $button);
+    }
+
+    protected function createPageJumpContainer(HTMLTag $input, HTMLTag $button): HTMLTag
+    {
         return HTMLTag::create('span')
             ->appendContent($input)
             ->appendContent($button);

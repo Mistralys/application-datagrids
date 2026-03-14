@@ -8,7 +8,7 @@ API.
 
 ## Requirements
 
-- PHP 8.2 or higher
+- PHP 8.4 or higher
 - [Composer](https://getcomposer.org)
 - Webserver
 

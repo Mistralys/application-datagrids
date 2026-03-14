@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace AppUtils\Grids\Renderer\Types;
 
+use AppUtils\Grids\Columns\GridColumnInterface;
 use AppUtils\Grids\Pagination\GridPagination;
 use AppUtils\Grids\Renderer\BaseGridRenderer;
 use AppUtils\Grids\Rows\GridRowInterface;
@@ -47,6 +48,23 @@ class Bootstrap5Renderer extends BaseGridRenderer
     }
 
     // =========================================================================
+    // Bootstrap 5 Sort Header (WP-003)
+    // =========================================================================
+
+    /**
+     * @param GridColumnInterface $column
+     * @param string[] $extraClasses
+     * @return HTMLTag
+     */
+    protected function createSortAnchor(GridColumnInterface $column, array $extraClasses = []): HTMLTag
+    {
+        return parent::createSortAnchor(
+            $column,
+            array_merge(['text-decoration-none', 'text-reset', 'd-inline-flex', 'align-items-center', 'gap-1'], $extraClasses)
+        );
+    }
+
+    // =========================================================================
     // Bootstrap 5 Pagination (WP-005)
     // =========================================================================
 
@@ -87,7 +105,7 @@ class Bootstrap5Renderer extends BaseGridRenderer
             ->appendContent($nav);
 
         if ($pagination->isPageJumpEnabled()) {
-            $td->appendContent($this->createBootstrapPageJumpInput($pagination));
+            $td->appendContent($this->createPageJumpInput($pagination));
         }
 
         return HTMLTag::create('tr')
@@ -176,29 +194,14 @@ class Bootstrap5Renderer extends BaseGridRenderer
             ->setContent($span);
     }
 
-    private function createBootstrapPageJumpInput(GridPagination $pagination): HTMLTag
+    protected function createPageJumpContainer(HTMLTag $input, HTMLTag $button): HTMLTag
     {
-        $gridId = $this->grid->getID();
-        $inputId = 'grid-' . $gridId . '-page-jump';
-        $totalPages = $pagination->getTotalPages();
-        $urlTemplate = $pagination->getPageURLTemplate();
-        $encodedUrlTemplate = json_encode($urlTemplate);
-        $encodedInputId = json_encode($inputId);
-
-        $js = "var p = document.getElementById({$encodedInputId}).value; window.location.href = {$encodedUrlTemplate}.replace('{PAGE}', p)";
-
-        $input = HTMLTag::create('input')
-            ->attr('type', 'number')
+        $input
             ->addClasses(['form-control', 'form-control-sm'])
-            ->attr('style', 'width:80px')
-            ->attr('min', '1')
-            ->attr('max', (string)$totalPages)
-            ->id($inputId);
+            ->attr('style', 'width:80px');
 
-        $button = HTMLTag::create('button')
-            ->addClasses(['btn', 'btn-sm', 'btn-outline-secondary'])
-            ->attr('onclick', $js)
-            ->setContent('Go');
+        $button
+            ->addClasses(['btn', 'btn-sm', 'btn-outline-secondary']);
 
         return HTMLTag::create('div')
             ->addClasses(['d-flex', 'align-items-center', 'gap-2', 'mt-2'])

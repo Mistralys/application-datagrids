@@ -18,7 +18,7 @@ use AppUtils\Grids\Rows\GridRowInterface;
 use AppUtils\Grids\Rows\Types\HeaderRow;
 use AppUtils\Grids\Rows\Types\MergedRow;
 use AppUtils\Interfaces\StringableInterface;
-use WebcomicsBuilder\Grids\Rows\Types\StandardRow;
+use AppUtils\Grids\Rows\Types\StandardRow;
 
 interface GridRendererInterface
 {

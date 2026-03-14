@@ -21,7 +21,7 @@ class GridForm implements ClassableInterface, IDInterface
 
     /**
      * @param string $name
-     * @param string|int|float|bool|NULL $value Set to `null` to remove the hidden variable.
+     * @param string|int|float|bool $value
      * @return HiddenVar
      */
     public function addHiddenVar(string $name, string|int|float|bool $value, ?string $id=null): HiddenVar
@@ -40,7 +40,7 @@ class GridForm implements ClassableInterface, IDInterface
     }
 
     /**
-     * @param array<string,string|int|bool|NULL> $vars
+     * @param array<string,string|int|bool> $vars
      * @return $this
      */
     public function setHiddenVars(array $vars) : self

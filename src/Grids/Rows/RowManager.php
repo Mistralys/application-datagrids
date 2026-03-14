@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace AppUtils\Grids\Rows;
 
 use AppUtils\Grids\DataGridInterface;
+use AppUtils\Grids\Rows\BaseGridRow;
 use AppUtils\Grids\Rows\Types\HeaderRow;
 use AppUtils\Grids\Rows\Types\MergedRow;
-use WebcomicsBuilder\Grids\Rows\Types\StandardRow;
+use AppUtils\Interfaces\StringableInterface;
+use AppUtils\Grids\Rows\Types\StandardRow;
 
 class RowManager
 {
@@ -27,6 +29,9 @@ class RowManager
         return $this->grid;
     }
 
+    /**
+     * @param array<int, array<string, mixed>> $rows
+     */
     public function addArrays(array $rows) : self
     {
         foreach ($rows as $row) {
@@ -36,6 +41,9 @@ class RowManager
         return $this;
     }
 
+    /**
+     * @param array<string, mixed> $columnValues
+     */
     public function addArray(array $columnValues) : StandardRow
     {
         $row = new StandardRow($this, $columnValues);
@@ -45,7 +53,7 @@ class RowManager
         return $row;
     }
 
-    public function addMerged($content=null) : MergedRow
+    public function addMerged(string|StringableInterface|NULL $content=null) : MergedRow
     {
         $row = new MergedRow($content);
 
@@ -56,6 +64,9 @@ class RowManager
 
     public function registerRow(GridRowInterface $row) : self
     {
+        if ($row instanceof BaseGridRow) {
+            $row->setRowManager($this);
+        }
         $this->rows[] = $row;
         return $this;
     }
@@ -91,6 +102,7 @@ class RowManager
 
         if($this->isHeaderRowEnabled()) {
             $this->headerRow = new HeaderRow();
+            $this->headerRow->setRowManager($this);
         }
 
         return $this->headerRow;

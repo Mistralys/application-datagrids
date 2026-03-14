@@ -9,7 +9,7 @@ use AppUtils\Grids\Traits\AlignInterface;
 use AppUtils\Grids\Traits\AlignTrait;
 use AppUtils\Grids\Traits\IDInterface;
 use AppUtils\Grids\Traits\IDTrait;
-use WebcomicsBuilder\Grids\Rows\Types\StandardRow;
+use AppUtils\Grids\Rows\Types\StandardRow;
 
 class RegularCell extends BaseCell implements IDInterface, AlignInterface
 {

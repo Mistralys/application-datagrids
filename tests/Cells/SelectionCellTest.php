@@ -40,7 +40,7 @@ class SelectionCellTest extends TestCase
      * When no value column is set, getSelectionCell() throws DataGridException.
      * The empty-value render path is no longer reachable.
      */
-    public function test_renderContent_emptyValue(): void
+    public function test_getSelectionCell_throwsOnMissingValueColumn(): void
     {
         $this->expectException(DataGridException::class);
 

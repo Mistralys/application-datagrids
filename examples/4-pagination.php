@@ -31,8 +31,8 @@ $grid->renderer()
     ->makeHover();
 
 // 4. Define columns
-$grid->columns()->add('id', '#')->setCompact()->alignRight();
-$grid->columns()->add('title', 'Title')->setWidth('50%');
+$grid->columns()->add('id', '#')->setCompact()->alignRight()->useNativeSorting();
+$grid->columns()->add('title', 'Title')->setWidth('50%')->useNativeSorting();
 $grid->columns()->add('category', 'Category');
 $grid->columns()->add('status', 'Status');
 

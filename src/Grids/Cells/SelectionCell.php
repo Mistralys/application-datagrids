@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace AppUtils\Grids\Cells;
 
 use AppUtils\HTMLTag;
-use WebcomicsBuilder\Grids\Rows\Types\StandardRow;
+use AppUtils\Grids\Rows\Types\StandardRow;
 
 /**
  * A checkbox cell prepended to each selectable row.

@@ -10,6 +10,7 @@ use AppUtils\Grids\Pagination\GridPagination;
 use AppUtils\Grids\Columns\GridColumnInterface;
 use AppUtils\Grids\Options\GridOptions;
 use AppUtils\Grids\Rows\RowManager;
+use AppUtils\Grids\Sorting\SortManagerInterface;
 use AppUtils\Interfaces\ClassableInterface;
 use AppUtils\Interfaces\RenderableInterface;
 
@@ -23,6 +24,7 @@ interface DataGridInterface extends RenderableInterface, ClassableInterface
     public function hasActions(): bool;
     public function processActions(): bool;
     public function pagination(): GridPagination;
+    public function sorting(): SortManagerInterface;
     public function options() : GridOptions;
     public function columns(): ColumnManager;
     public function rows(): RowManager;

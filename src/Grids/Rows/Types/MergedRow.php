@@ -11,6 +11,11 @@ class MergedRow extends BaseGridRow
 {
     private string $content = '';
 
+    public function isSelectable(): bool
+    {
+        return false;
+    }
+
     public function __construct(string|StringableInterface|NULL $content=null)
     {
         $this->setContent($content);
