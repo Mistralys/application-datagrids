@@ -20,26 +20,31 @@ for ($i = 1; $i <= 200; $i++) {
     ];
 }
 
-// 2. Create ArrayPagination: 15 items/page, auto-detect page from $_GET['page']
-$pagination = new ArrayPagination($allItems, 15);
-
-// 3. Create the grid + Bootstrap 5 renderer
+// 2. Create the grid + Bootstrap 5 renderer
 $grid = DataGrid::create('pagination-demo', $storage);
 $grid->renderer()
     ->selectBootstrap5()
     ->makeBordered()
     ->makeHover();
 
-// 4. Define columns
+// 3. Define columns
 $grid->columns()->add('id', '#')->setCompact()->alignRight()->useNativeSorting();
 $grid->columns()->add('title', 'Title')->setWidth('50%')->useNativeSorting();
 $grid->columns()->add('category', 'Category');
 $grid->columns()->add('status', 'Status');
 
-// 5. Set the pagination provider
+// 4. Configure the available page-size options, then resolve the effective value.
+//    Priority chain: $_GET['ipp'] → persisted GridSettings → default (15).
+//    The resolved value is auto-persisted to GridSettings when it comes from $_GET.
+$grid->pagination()->setItemsPerPageOptions([10, 15, 25, 50]);
+$itemsPerPage = $grid->pagination()->resolveItemsPerPage(15);
+
+// 5. Build the provider with the resolved items-per-page and attach it.
+//    The IPP selector is rendered automatically next to the page-jump input.
+$pagination = new ArrayPagination($allItems, $itemsPerPage);
 $grid->pagination()->setProvider($pagination);
 
-// 6. Configure display
+// 6. Configure display settings
 $grid->pagination()->setAdjacentCount(2)->setEdgeCount(2)->setPageJumpEnabled(true);
 
 // 7. Add ONLY the current page's items to the grid

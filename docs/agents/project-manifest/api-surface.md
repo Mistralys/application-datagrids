@@ -556,7 +556,10 @@ abstract class BaseGridRenderer implements GridRendererInterface
     public function renderSelectionCell(SelectionCell $cell): string|StringableInterface;
     protected function createSelectionCell(SelectionCell $cell): HTMLTag;
 
-    // Pagination rendering (WP-005)
+    // Pagination rendering (WP-005 / WP-003)
+    // renderPaginationRow() returns '' when hasProvider() is false.
+    // It also returns '' when getTotalPages() <= 1 AND hasItemsPerPageOptions() is false (backward-compat guard).
+    // When IPP options are configured the row is always rendered (even on 0-item/1-page grids).
     public function renderPaginationRow(GridPagination $pagination): string|StringableInterface;
     protected function createPaginationRow(GridPagination $pagination): HTMLTag;
     protected function createPreviousLink(GridPagination $pagination): HTMLTag;
@@ -567,6 +570,11 @@ abstract class BaseGridRenderer implements GridRendererInterface
     protected function createPageJumpInput(GridPagination $pagination): HTMLTag;
     // Template method hook — returns a plain <span> wrapper by default; override to customise the container element.
     protected function createPageJumpContainer(HTMLTag $input, HTMLTag $button): HTMLTag;
+    // Items-per-page selector (WP-003). Returns a bare <select onchange="..."> with one <option> per configured option.
+    // The onchange handler navigates via getItemsPerPageURLTemplate() with {IPP} replaced by this.value.
+    // XSS-safe: the URL template is encoded with json_encode() before JS interpolation.
+    // Override in a subclass to change styling; call parent::createItemsPerPageSelector() to get the base <select>.
+    protected function createItemsPerPageSelector(GridPagination $pagination): HTMLTag;
 }
 ```
 
@@ -615,11 +623,16 @@ class Bootstrap5Renderer extends BaseGridRenderer
     // @param string[] $extraClasses
     protected function createSortAnchor(GridColumnInterface $column, array $extraClasses = []): HTMLTag;
 
-    // Pagination (WP-005) — Bootstrap 5 override of BaseGridRenderer::renderPaginationRow()
+    // Pagination (WP-004) — Bootstrap 5 override of BaseGridRenderer::renderPaginationRow()
     // Produces <tr><td colspan><nav aria-label="Page navigation"><ul class="pagination">...
+    // Same visibility rule as BaseGridRenderer: '' when no provider; '' when totalPages <= 1 AND no IPP options.
     public function renderPaginationRow(GridPagination $pagination): string|StringableInterface;
-    // Protected override (template method hook from BaseGridRenderer):
+    // Protected overrides (template method hooks from BaseGridRenderer):
     protected function createPageJumpContainer(HTMLTag $input, HTMLTag $button): HTMLTag; // applies Bootstrap classes to $input/$button; wraps in <div class="d-flex align-items-center gap-2 mt-2">
+    // Items-per-page selector override (WP-004) — calls parent::createItemsPerPageSelector() to obtain the base
+    // <select>, adds form-select form-select-sm classes and style="width:auto", then wraps it in:
+    // <div class="d-flex align-items-center gap-2 mt-2"> (returns the <div>, not the bare <select>).
+    protected function createItemsPerPageSelector(GridPagination $pagination): HTMLTag;
     // Private helpers (not overridable):
     // createBootstrapPaginationRow(), createBootstrapPreviousItem(),
     // createBootstrapNextItem(), createBootstrapPageItem(),
@@ -769,6 +782,7 @@ Grid-side manager that wraps a `PaginationInterface` provider and computes deriv
 class GridPagination
 {
     public const PAGE_SENTINEL = 999_999_999_999;  // public — usable by external pagination providers
+    public const IPP_SENTINEL  = 888_888_888_888;  // used by getItemsPerPageURLTemplate(); replaced with {IPP}
 
     public function __construct(DataGridInterface $grid);
     public function getGrid(): DataGridInterface;
@@ -800,6 +814,32 @@ class GridPagination
     // Show at top — renders pagination row inside <thead> in addition to the default <tfoot> position
     public function isShowAtTop(): bool;
     public function setShowAtTop(bool $showAtTop = true): self;
+
+    // Items-per-page options (WP-002)
+    // Values are deduplicated, filtered to positive integers, and sorted ascending.
+    public function setItemsPerPageOptions(array $options): self;  // @param int[] $options
+    public function getItemsPerPageOptions(): array;               // @return int[]
+    public function hasItemsPerPageOptions(): bool;
+    public function setDefaultItemsPerPage(int $default): self;   // fallback when nothing stored; default 25
+    public function getDefaultItemsPerPage(): int;
+    public function setItemsPerPageParam(string $param): self;    // GET parameter name; default 'ipp'
+    public function getItemsPerPageParam(): string;
+
+    // Items-per-page resolution (WP-002) — lazy, cached
+    // Priority chain: $_GET[param] → GridSettings → $default (or configured default).
+    // A valid $_GET value is validated against the options whitelist before use and
+    // auto-persisted to GridSettings. Result is cached for the lifetime of the object.
+    public function resolveItemsPerPage(?int $default = null): int;
+    // Alias for resolveItemsPerPage(); intended for renderer use after resolution has occurred.
+    public function getEffectiveItemsPerPage(): int;
+
+    // Items-per-page URL building (WP-002)
+    // Builds URL by taking getProvider()->getPageURL(1), then injects $ippParam.
+    // Only preserves path + query — scheme, host, port, and fragment are silently dropped
+    // (correct for this project's relative-URL use case; unexpected for absolute URLs).
+    public function getItemsPerPageURL(int $itemsPerPage): string;
+    // Calls getItemsPerPageURL(IPP_SENTINEL) and replaces the sentinel with {IPP}.
+    public function getItemsPerPageURLTemplate(): string;
 }
 ```
 

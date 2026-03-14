@@ -436,12 +436,15 @@ abstract class BaseGridRenderer implements GridRendererInterface
     }
 
     // =========================================================================
-    // Pagination rendering (WP-005)
+    // Pagination rendering (WP-005 + WP-003)
     // =========================================================================
 
     public function renderPaginationRow(GridPagination $pagination): string|StringableInterface
     {
-        if (!$pagination->hasProvider() || $pagination->getTotalPages() <= 1) {
+        if (!$pagination->hasProvider()) {
+            return '';
+        }
+        if ($pagination->getTotalPages() <= 1 && !$pagination->hasItemsPerPageOptions()) {
             return '';
         }
 
@@ -450,31 +453,64 @@ abstract class BaseGridRenderer implements GridRendererInterface
 
     protected function createPaginationRow(GridPagination $pagination): HTMLTag
     {
-        $nav = HTMLTag::create('nav')
-            ->appendContent($this->createPreviousLink($pagination));
+        $td = HTMLTag::create('td')
+            ->attr('colspan', (string)$this->getColspan());
 
-        foreach ($pagination->getPageNumbers() as $page) {
-            if ($page === null) {
-                $nav->appendContent($this->createEllipsis());
-            } else {
-                $isCurrent = $page === $pagination->getCurrentPage();
-                $url = $isCurrent ? '' : $pagination->getPageURL($page);
-                $nav->appendContent($this->createPageLink($page, $url, $isCurrent));
+        if ($pagination->getTotalPages() > 1) {
+            $nav = HTMLTag::create('nav')
+                ->appendContent($this->createPreviousLink($pagination));
+
+            foreach ($pagination->getPageNumbers() as $page) {
+                if ($page === null) {
+                    $nav->appendContent($this->createEllipsis());
+                } else {
+                    $isCurrent = $page === $pagination->getCurrentPage();
+                    $url = $isCurrent ? '' : $pagination->getPageURL($page);
+                    $nav->appendContent($this->createPageLink($page, $url, $isCurrent));
+                }
+            }
+
+            $nav->appendContent($this->createNextLink($pagination));
+            $td->appendContent($nav);
+
+            if ($pagination->isPageJumpEnabled()) {
+                $td->appendContent($this->createPageJumpInput($pagination));
             }
         }
 
-        $nav->appendContent($this->createNextLink($pagination));
-
-        $td = HTMLTag::create('td')
-            ->attr('colspan', (string)$this->getColspan())
-            ->appendContent($nav);
-
-        if ($pagination->isPageJumpEnabled()) {
-            $td->appendContent($this->createPageJumpInput($pagination));
+        if ($pagination->hasItemsPerPageOptions()) {
+            $td->appendContent($this->createItemsPerPageSelector($pagination));
         }
 
         return HTMLTag::create('tr')
             ->setContent($td);
+    }
+
+    protected function createItemsPerPageSelector(GridPagination $pagination): HTMLTag
+    {
+        $urlTemplate = $pagination->getItemsPerPageURLTemplate();
+        $encodedUrlTemplate = json_encode($urlTemplate, JSON_THROW_ON_ERROR);
+
+        $js = "window.location.href = {$encodedUrlTemplate}.replace('{IPP}', this.value)";
+
+        $select = HTMLTag::create('select')
+            ->attr('onchange', $js);
+
+        $effectiveIpp = $pagination->getEffectiveItemsPerPage();
+
+        foreach ($pagination->getItemsPerPageOptions() as $option) {
+            $optionTag = HTMLTag::create('option')
+                ->attr('value', (string)$option)
+                ->setContent($option . ' per page');
+
+            if ($option === $effectiveIpp) {
+                $optionTag->attr('selected', 'selected');
+            }
+
+            $select->appendContent($optionTag);
+        }
+
+        return $select;
     }
 
     protected function createPreviousLink(GridPagination $pagination): HTMLTag

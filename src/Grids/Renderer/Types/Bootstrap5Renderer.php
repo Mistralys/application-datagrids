@@ -65,12 +65,15 @@ class Bootstrap5Renderer extends BaseGridRenderer
     }
 
     // =========================================================================
-    // Bootstrap 5 Pagination (WP-005)
+    // Bootstrap 5 Pagination (WP-005 + WP-003)
     // =========================================================================
 
     public function renderPaginationRow(GridPagination $pagination): string|StringableInterface
     {
-        if (!$pagination->hasProvider() || $pagination->getTotalPages() <= 1) {
+        if (!$pagination->hasProvider()) {
+            return '';
+        }
+        if ($pagination->getTotalPages() <= 1 && !$pagination->hasItemsPerPageOptions()) {
             return '';
         }
 
@@ -79,37 +82,55 @@ class Bootstrap5Renderer extends BaseGridRenderer
 
     private function createBootstrapPaginationRow(GridPagination $pagination): HTMLTag
     {
-        $ul = HTMLTag::create('ul')
-            ->addClass('pagination');
+        $td = HTMLTag::create('td')
+            ->attr('colspan', (string)$this->getColspan());
 
-        $ul->appendContent($this->createBootstrapPreviousItem($pagination));
+        if ($pagination->getTotalPages() > 1) {
+            $ul = HTMLTag::create('ul')
+                ->addClass('pagination');
 
-        foreach ($pagination->getPageNumbers() as $page) {
-            if ($page === null) {
-                $ul->appendContent($this->createBootstrapEllipsisItem());
-            } else {
-                $isCurrent = $page === $pagination->getCurrentPage();
-                $url = $isCurrent ? '' : $pagination->getPageURL($page);
-                $ul->appendContent($this->createBootstrapPageItem($page, $url, $isCurrent));
+            $ul->appendContent($this->createBootstrapPreviousItem($pagination));
+
+            foreach ($pagination->getPageNumbers() as $page) {
+                if ($page === null) {
+                    $ul->appendContent($this->createBootstrapEllipsisItem());
+                } else {
+                    $isCurrent = $page === $pagination->getCurrentPage();
+                    $url = $isCurrent ? '' : $pagination->getPageURL($page);
+                    $ul->appendContent($this->createBootstrapPageItem($page, $url, $isCurrent));
+                }
+            }
+
+            $ul->appendContent($this->createBootstrapNextItem($pagination));
+
+            $nav = HTMLTag::create('nav')
+                ->attr('aria-label', 'Page navigation')
+                ->setContent($ul);
+
+            $td->appendContent($nav);
+
+            if ($pagination->isPageJumpEnabled()) {
+                $td->appendContent($this->createPageJumpInput($pagination));
             }
         }
 
-        $ul->appendContent($this->createBootstrapNextItem($pagination));
-
-        $nav = HTMLTag::create('nav')
-            ->attr('aria-label', 'Page navigation')
-            ->setContent($ul);
-
-        $td = HTMLTag::create('td')
-            ->attr('colspan', (string)$this->getColspan())
-            ->appendContent($nav);
-
-        if ($pagination->isPageJumpEnabled()) {
-            $td->appendContent($this->createPageJumpInput($pagination));
+        if ($pagination->hasItemsPerPageOptions()) {
+            $td->appendContent($this->createItemsPerPageSelector($pagination));
         }
 
         return HTMLTag::create('tr')
             ->setContent($td);
+    }
+
+    protected function createItemsPerPageSelector(GridPagination $pagination): HTMLTag
+    {
+        $select = parent::createItemsPerPageSelector($pagination);
+        $select->addClasses(['form-select', 'form-select-sm'])
+               ->attr('style', 'width:auto');
+
+        return HTMLTag::create('div')
+            ->addClasses(['d-flex', 'align-items-center', 'gap-2', 'mt-2'])
+            ->appendContent($select);
     }
 
     private function createBootstrapPreviousItem(GridPagination $pagination): HTMLTag

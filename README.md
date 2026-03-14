@@ -79,3 +79,43 @@ class SessionStorage implements GridStorageInterface
     }
 }
 ```
+
+### Built-in items-per-page selector
+
+Call `setItemsPerPageOptions()` on the grid's pagination instance to enable an automatic dropdown
+selector rendered as part of the pagination row — no separate form or handler required:
+
+```php
+use AppUtils\Grids\Pagination\Types\ArrayPagination;
+
+$pagination = $grid->pagination();
+
+// Define the available choices:
+$pagination->setItemsPerPageOptions([10, 25, 50, 100]);
+
+// Resolve the effective value — priority: $_GET['ipp'] → persisted setting → default:
+$itemsPerPage = $pagination->resolveItemsPerPage(25);
+
+// Build the provider with the resolved value:
+$provider = new ArrayPagination($allItems, $itemsPerPage);
+$pagination->setProvider($provider);
+$grid->rows()->addArrays($provider->getSlicedItems());
+
+echo $grid;  // selector appears automatically next to the page-jump input
+```
+
+The selected value is persisted via `GridSettings` so it survives across page loads. When the
+user picks a new value, `$_GET['ipp']` is detected on the next request, validated against the
+configured options whitelist, persisted, and used for the current render.
+
+**Backward compatibility:** grids that do not call `setItemsPerPageOptions()` are unaffected —
+the pagination row continues to be hidden on single-page results exactly as before.
+
+**Visibility rule:** when at least one IPP option is configured, the pagination row is shown even
+when `totalPages <= 1` (e.g. a zero-row grid), so users can always change the page size.
+
+**Bootstrap 5 renderer:** the `<select>` is automatically wrapped in a
+`d-flex align-items-center gap-2 mt-2` container and styled with `form-select form-select-sm`.
+
+**GET parameter name:** defaults to `ipp`. Change it with `$pagination->setItemsPerPageParam('per_page')`
+if it conflicts with another parameter on the same page.

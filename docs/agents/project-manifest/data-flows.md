@@ -97,6 +97,8 @@ DataGrid::generateOutput()
   │      │   renderer->renderPaginationRow(GridPagination)
   │      │   └─ colspan = getColspan() = countColumns()+1 when actions exist
   │      │      (Bootstrap5Renderer renders a <ul class="pagination"> nav; DefaultRenderer renders plain links)
+  │      │      Visibility: returns '' when no provider, or when getTotalPages() <= 1 AND !hasItemsPerPageOptions().
+  │      │      When IPP options are configured the row always renders (even on 0-item/single-page grids).
   │      │
   │      ├─ If actions defined:
   │      │   renderer->renderActionsRow(GridActions)
@@ -199,18 +201,21 @@ User code:
 
   // DefaultRenderer output (BaseGridRenderer):
   //   <tr><td colspan="{colspan}">
-  //     <nav>
+  //     [<nav>  ← only when getTotalPages() > 1
   //       <span class="disabled">Previous</span> | <a href="...">Previous</a>
   //       <span class="current-page">{n}</span> | <a href="...">{n}</a>
   //       <span class="pagination-ellipsis">…</span>  ← null sentinel
   //       <span class="disabled">Next</span> | <a href="...">Next</a>
   //       [<span><input type=number><button onclick="...">Go</button></span>] ← if jump enabled
-  //     </nav>
+  //     </nav>]
+  //     [<select onchange="window.location.href = '...'.replace('{IPP}', this.value)">
+  //       <option value="{n}" [selected]>{n} per page</option> ...
+  //     </select>]  ← if hasItemsPerPageOptions()
   //   </td></tr>
 
   // Bootstrap5Renderer output:
   //   <tr><td colspan="{colspan}">
-  //     <nav aria-label="Page navigation">
+  //     [<nav aria-label="Page navigation">  ← only when getTotalPages() > 1
   //       <ul class="pagination">
   //         <li class="page-item [disabled]"><[span|a] class="page-link" aria-label="Previous page">&laquo;</[span|a]></li>
   //         <li class="page-item [active]" [aria-current="page"]><[span|a] class="page-link">{n}</[span|a]></li>
@@ -220,11 +225,17 @@ User code:
   //       [<div class="d-flex align-items-center gap-2 mt-2">
   //         <input class="form-control form-control-sm" style="width:80px"><button class="btn btn-sm btn-outline-secondary">Go</button>
   //       </div>]  ← if jump enabled
-  //     </nav>
+  //     </nav>]
+  //     [<div class="d-flex align-items-center gap-2 mt-2">
+  //       <select class="form-select form-select-sm" style="width:auto" onchange="...">
+  //         <option value="{n}" [selected]>{n} per page</option> ...
+  //       </select>
+  //     </div>]  ← if hasItemsPerPageOptions()
   //   </td></tr>
 
   // NOTE: DataGrid::generateOutput() calls renderPaginationRow() inside the footer
   // when $this->pagination !== null && $this->pagination->hasProvider().
+  // The row is suppressed when getTotalPages() <= 1 AND !hasItemsPerPageOptions() (backward compat).
 
   // Computed properties still available directly:
   $totalPages  = $pagination->getTotalPages();
@@ -244,6 +255,19 @@ User code:
   // JavaScript-friendly URL template:
   $urlTemplate = $pagination->getPageURLTemplate();
   //   → "/path?page={PAGE}"  (internal 12-digit sentinel replaced with {PAGE})
+
+  // ----- Items-per-page resolution (WP-002) -----
+  // Configure once; resolveItemsPerPage() handles GET → GridSettings → default priority chain.
+  // Only available when setItemsPerPageOptions() has been called with at least one option.
+  $pagination->setItemsPerPageOptions([10, 25, 50, 100]);
+  $itemsPerPage = $pagination->resolveItemsPerPage(25);  // or just resolveItemsPerPage() to use configured default
+  //   Priority chain (first match wins):
+  //   1. $_GET[$ippParam] — if present and in options whitelist → persisted to GridSettings → cached
+  //   2. GridSettings::getItemsPerPage($fallback) — previously persisted value
+  //   3. $default argument (or setDefaultItemsPerPage() value; built-in default: 25)
+  //   Returns the same value on repeated calls (lazy cache for the lifetime of the object).
+  $urlTemplate = $pagination->getItemsPerPageURLTemplate();
+  //   → "/path?page=1&ipp={IPP}"  (page reset to 1; IPP_SENTINEL replaced with {IPP})
 ```
 
 ---

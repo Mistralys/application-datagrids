@@ -112,7 +112,7 @@ application-datagrids/
 │   ├── Cells/                             # Tests for SelectionCell rendering
 │   │   └── SelectionCellTest.php          # 2 tests: checkbox markup (type/name/value), throws DataGridException when value column missing
 │   ├── Pagination/                        # Tests for GridPagination, ArrayPagination
-│   │   └── GridPaginationTest.php         # 22 tests: page calc, clamping, page numbers, prev/next, URL template
+│   │   └── GridPaginationTest.php         # 36 tests: page calc, clamping, page numbers, prev/next, URL template; (WP-002/WP-005) IPP options, resolveItemsPerPage (priority chain, persist, cache, invalid GET), IPP URL template/page-reset, custom param
 │   │   └── ArrayPaginationTest.php        # 11 tests: slicing, URL params, totalItems, itemsPerPage, clamping
 │   ├── Rows/                              # Tests for StandardRow, row selection
 │   │   └── StandardRowTest.php            # 5 tests: getSelectValue (with/without column), isSelectable (with/without actions), throws DataGridException on empty value

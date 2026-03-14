@@ -20,6 +20,7 @@ No known bugs at this time. All previously tracked bugs (#1–#7) have been reso
 | Item | File | Notes |
 |---|---|---|
 | `InMemoryStorage` not registered under `autoload-dev` | `tests/TestClasses/InMemoryStorage.php` | `tests/bootstrap.php` now glob-loads all files in `TestClasses/`, so `InMemoryStorage` is available to all test suites without manual requires. Formal `autoload-dev` registration is deferred to WP-008. |
+| `Bootstrap5Renderer::renderPaginationRow()` duplicates base-class guard logic | `src/Grids/Renderer/Types/Bootstrap5Renderer.php` | The method is a near-full copy of `BaseGridRenderer::renderPaginationRow()`, differing only in the final delegate call (`createBootstrapPaginationRow` vs `createPaginationRow`). The base class already follows the Template Method pattern — `Bootstrap5Renderer` should override `createPaginationRow()` instead to eliminate duplication. If guards are added to the base method in future WPs, this override will silently miss them. Flagged in WP-004 code review (medium priority, non-blocking). |
 
 ---
 
@@ -89,11 +90,11 @@ composer test
 
 Test infrastructure is in place: `tests/bootstrap.php` requires the Composer autoloader, `phpunit.xml` configures a test suite pointing to `tests/` with named suites for each subdirectory, and subdirectories `tests/Actions/`, `tests/Cells/`, `tests/Pagination/`, `tests/Rows/`, `tests/Settings/`, `tests/Sorting/`, and `tests/Storage/` exist.
 
-**Current test coverage (91 tests, 197 assertions):**
+**Current test coverage (112 tests):**
 
 | Test class | Tests | Assertions | Coverage |
 |---|---|---|---|
-| `GridPaginationTest` | 22 | 24 | `getTotalPages`, `getCurrentPage` clamping, `getPageNumbers` (small/large/boundary, ellipsis), `hasPreviousPage`/`hasNextPage`, `getPageURLTemplate` |
+| `GridPaginationTest` | 36 | — | `getTotalPages`, `getCurrentPage` clamping, `getPageNumbers` (small/large/boundary, ellipsis), `hasPreviousPage`/`hasNextPage`, `getPageURLTemplate`; (WP-002) `setItemsPerPageOptions`, `hasItemsPerPageOptions`, `resolveItemsPerPage` (priority chain, persist, cache, invalid GET), `getItemsPerPageURLTemplate`, `getItemsPerPageURL` (page reset), `setItemsPerPageParam` |
 | `ArrayPaginationTest` | 11 | 20 | `getSlicedItems` (first/middle/last/single-item), `getPageURL` (add/replace/custom param), `totalItems`, `itemsPerPage`, `currentPage` clamping |
 | `GridActionsTest` | 7 | 9 | `processSubmittedActions()`: no data, empty array, missing field, unknown action, separator skipping, callback invocation, no callback set |
 | `StandardRowTest` | 5 | 5 | `getSelectValue()` with/without value column, `isSelectable()` with/without actions, `DataGridException` on empty value column |
@@ -104,7 +105,7 @@ Test infrastructure is in place: `tests/bootstrap.php` requires the Composer aut
 | `GridSettingsTest` | 6 | 7 | `getItemsPerPage()` null default, explicit default, set/get round-trip, fluent return, default override, per-gridID isolation; uses `InMemoryStorage` (no I/O) |
 | `JsonFileStorageTest` | 7 | 11 | Read/write round-trip, default fallback (value and null), file creation on first write, multiple keys per grid, multiple grids isolated, directory creation; uses temp dir with `tearDown` cleanup |
 
-`GridPaginationTest` uses an anonymous `PaginationInterface` stub — zero global state. `ArrayPaginationTest` uses `setUp`/`tearDown` to save/restore `$_SERVER['REQUEST_URI']`. `GridActionsTest`, `StandardRowTest`, and `SelectionCellTest` do not require `set_error_handler`/`restore_error_handler`; the missing-value-column path now throws `DataGridException` and is tested with `expectException`.
+`GridPaginationTest` uses an anonymous `PaginationInterface` stub — zero global state. `ArrayPaginationTest` uses `setUp`/`tearDown` to save/restore `$_SERVER['REQUEST_URI']`. `GridPaginationTest` IPP tests manipulate `$_GET` directly (e.g., `$_GET['ipp'] = '20'`) and use `try/finally` blocks to clean up via `unset($_GET['ipp'])` — no `setUp`/`tearDown` is needed because the IPP resolution result is cached on the `GridPagination` instance, so each test creates a fresh instance. `GridActionsTest`, `StandardRowTest`, and `SelectionCellTest` do not require `set_error_handler`/`restore_error_handler`; the missing-value-column path now throws `DataGridException` and is tested with `expectException`.
 
 > **Note:** `phpunit.xml` sets `failOnWarning="true"`. `StandardRow::getSelectionCell()` now throws `DataGridException::ERROR_NO_VALUE_COLUMN` (code `171701`) when selection is active but no value column is set — use `expectException(DataGridException::class)` in tests; `set_error_handler`/`restore_error_handler` is no longer needed for this path.
 
