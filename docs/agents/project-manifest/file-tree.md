@@ -39,6 +39,7 @@ application-datagrids/
 │       │   ├── ColumnManager.php          # Add, register, and retrieve columns
 │       │   ├── GridColumnException.php    # Column-specific exceptions
 │       │   ├── GridColumnInterface.php    # Column contract
+│       │   ├── SortMode.php               # Backed string enum: Native, Callback, Manual
 │       │   └── Types/
 │       │       ├── DefaultColumn.php      # Generic text column
 │       │       └── IntegerColumn.php      # Right-aligned, compact numeric column
@@ -61,6 +62,10 @@ application-datagrids/
 │       │   ├── GridPagination.php         # Grid-side manager: page calc, ranges, URL templates
 │       │   └── Types/
 │       │       └── ArrayPagination.php    # Array-backed provider (slice + URL rewrite)
+│       │
+│       ├── Sorting/                       # Sort state resolution & row ordering
+│       │   ├── SortManager.php            # Resolves sort state from $_GET, builds sort URLs, sorts rows in-place
+│       │   └── SortManagerInterface.php   # Public contract for sort state management
 │       │
 │       ├── Renderer/                      # Pluggable rendering system
 │       │   ├── BaseGridRenderer.php       # Abstract renderer with full default HTML output
@@ -89,17 +94,21 @@ application-datagrids/
 ├── vendor/                                # [auto-generated] Composer dependencies
 │   └── ...
 │
-├── tests/                                 # PHPUnit test suite (47 tests, 69 assertions)
+├── tests/                                 # PHPUnit test suite (78 tests, 179 assertions)
 │   ├── bootstrap.php                      # Test bootstrap (requires vendor/autoload.php)
 │   ├── Actions/                           # Tests for GridActions, action processing
 │   │   └── GridActionsTest.php            # 7 tests: processSubmittedActions() — no data, empty array, missing field, unknown action, separator, callback, no callback
 │   ├── Cells/                             # Tests for SelectionCell rendering
-│   │   └── SelectionCellTest.php          # 2 tests: checkbox markup (type/name/value), empty-value HTMLTag omission
+│   │   └── SelectionCellTest.php          # 2 tests: checkbox markup (type/name/value), throws DataGridException when value column missing
 │   ├── Pagination/                        # Tests for GridPagination, ArrayPagination
-│   │   ├── GridPaginationTest.php         # 20 tests: page calc, clamping, page numbers, prev/next, URL template
-│   │   └── ArrayPaginationTest.php        # 13 tests: slicing, URL params, totalItems, itemsPerPage, clamping
-│   └── Rows/                              # Tests for StandardRow, row selection
-│       └── StandardRowTest.php            # 5 tests: getSelectValue (with/without column), isSelectable (with/without actions), E_USER_WARNING on empty value
+│   │   └── GridPaginationTest.php         # 22 tests: page calc, clamping, page numbers, prev/next, URL template
+│   │   └── ArrayPaginationTest.php        # 11 tests: slicing, URL params, totalItems, itemsPerPage, clamping
+│   ├── Rows/                              # Tests for StandardRow, row selection
+│   │   └── StandardRowTest.php            # 5 tests: getSelectValue (with/without column), isSelectable (with/without actions), throws DataGridException on empty value
+│   └── Sorting/                           # Tests for SortManager, column sorting, renderer header cells
+│       ├── ColumnSortingTest.php          # 18 tests: sortable flags, getSortColumn/getSortDir resolution, native/callback/manual row sorting, getSortURL toggling, merged-row position preservation
+│       ├── SortManagerTest.php            # 8 tests: sortRows() native ASC/DESC, callback ASC/DESC (negation), manual no-op, no-sort-column no-op, MergedRow preservation, numeric native sort
+│       └── RendererSortHeaderTest.php     # 5 tests: non-sortable no-link (base/BS5), sortable has <a> with sort URL, active sort indicator, BS5 utility classes on <a>
 │
 └── docs/
     └── agents/

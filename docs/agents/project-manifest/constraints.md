@@ -12,26 +12,18 @@ No known bugs at this time. All previously tracked bugs (#1–#7) have been reso
 
 | Method | File | Notes |
 |---|---|---|
-| `DataGrid::getSortColumn()` | `DataGrid.php` | Empty body, should return `?GridColumnInterface` |
-| `DataGrid::getSortDir()` | `DataGrid.php` | Empty body, should return `string` |
-| `BaseGridColumn::useCallbackSorting()` | `BaseGridColumn.php` | Contains `// TODO` comment |
-| `BaseGridColumn::useManualSorting()` | `BaseGridColumn.php` | Contains `// TODO` comment |
 | `DefaultRenderer::renderCustomRow()` | `DefaultRenderer.php` | Returns empty string |
 | `Bootstrap5Renderer::renderCustomRow()` | `Bootstrap5Renderer.php` | Returns empty string |
 
-## Namespace Anomaly
+## Known Technical Debt
 
-`StandardRow` uses the namespace `WebcomicsBuilder\Grids\Rows\Types` instead of the expected `AppUtils\Grids\Rows\Types`. This is a legacy artifact (likely from a prior project). Because the project uses `classmap` autoloading, the class is still resolved correctly, but references to it from other files import from the wrong namespace:
+No known technical debt at this time.
 
-- `BaseCell.php` → `use WebcomicsBuilder\Grids\Rows\Types\StandardRow;`
-- `GridCellInterface.php` → `use WebcomicsBuilder\Grids\Rows\Types\StandardRow;`
-- `RegularCell.php` → `use WebcomicsBuilder\Grids\Rows\Types\StandardRow;`
-- `SelectionCell.php` → `use WebcomicsBuilder\Grids\Rows\Types\StandardRow;`
-- `RowManager.php` → `use WebcomicsBuilder\Grids\Rows\Types\StandardRow;`
-- `BaseGridRenderer.php` → `use WebcomicsBuilder\Grids\Rows\Types\StandardRow;`
-- `GridRendererInterface.php` → `use WebcomicsBuilder\Grids\Rows\Types\StandardRow;`
+---
 
 ## Runtime Errors
+
+`BaseGridRow::getGrid()` throws `DataGridException::ERROR_NO_ROW_MANAGER` (code `171702`) when called on a row instance before `setRowManager()` has been invoked. In normal usage this cannot happen because `RowManager::registerRow()` and `RowManager::getHeaderRow()` both call `setRowManager()` immediately after creating a row. It can only occur if a row is instantiated and `getGrid()` is called before the row is registered with a manager.
 
 `StandardRow::getSelectionCell()` throws `DataGridException::ERROR_NO_VALUE_COLUMN` (code `171701`) when row selection is active (at least one action configured) but no value column has been set via `GridActions::setValueColumn()`. This is a hard error — execution halts and the developer must configure a value column before calling this method.
 
@@ -51,8 +43,7 @@ This means `composer dump-autoload` must be run whenever files or classes are ad
 
 ## PHP Version
 
-- `composer.json` requires `php >= 8.4`
-- `README.md` states PHP 8.2 — these are inconsistent; the `composer.json` value is authoritative.
+Required: `php >= 8.4` (as declared in `composer.json`).
 
 ## Coding Conventions
 
@@ -77,6 +68,12 @@ PHPStan is configured at **level 6** with the PHPUnit extension. Run via:
 composer analyze
 ```
 
+**Current status:** 0 errors at level 6. The codebase passes PHPStan level 6 cleanly (all issues identified in this project plan have been resolved).
+
+**Level 7 analysis:** Introduces no additional errors beyond level 6 (0 new errors at level 7).
+
+**Level 8 analysis:** 0 errors (previously 2 — both resolved: `GridForm::setHiddenVars()` null guard added, `RendererManager::getRenderer()` null path eliminated).
+
 ## Testing
 
 PHPUnit 12 is configured. Run via:
@@ -85,9 +82,9 @@ PHPUnit 12 is configured. Run via:
 composer test
 ```
 
-Test infrastructure is in place: `tests/bootstrap.php` requires the Composer autoloader, `phpunit.xml.dist` configures a test suite pointing to `tests/`, and subdirectories `tests/Actions/`, `tests/Cells/`, `tests/Pagination/`, and `tests/Rows/` exist.
+Test infrastructure is in place: `tests/bootstrap.php` requires the Composer autoloader, `phpunit.xml.dist` configures a test suite pointing to `tests/`, and subdirectories `tests/Actions/`, `tests/Cells/`, `tests/Pagination/`, `tests/Rows/`, and `tests/Sorting/` exist.
 
-**Current test coverage (47 tests, 63 assertions):**
+**Current test coverage (78 tests, 179 assertions):**
 
 | Test class | Tests | Assertions | Coverage |
 |---|---|---|---|
@@ -95,7 +92,10 @@ Test infrastructure is in place: `tests/bootstrap.php` requires the Composer aut
 | `ArrayPaginationTest` | 11 | 20 | `getSlicedItems` (first/middle/last/single-item), `getPageURL` (add/replace/custom param), `totalItems`, `itemsPerPage`, `currentPage` clamping |
 | `GridActionsTest` | 7 | 9 | `processSubmittedActions()`: no data, empty array, missing field, unknown action, separator skipping, callback invocation, no callback set |
 | `StandardRowTest` | 5 | 5 | `getSelectValue()` with/without value column, `isSelectable()` with/without actions, `DataGridException` on empty value column |
-| `SelectionCellTest` | 2 | 5 | `renderContent()` checkbox markup (type/name/value), empty-value HTMLTag attribute omission |
+| `SelectionCellTest` | 2 | 5 | `renderContent()` checkbox markup (type/name/value), `StandardRow::getSelectionCell()` throws `DataGridException` when value column missing |
+| `ColumnSortingTest` | 18 | 51 | `useNativeSorting`/`useCallbackSorting`/`useManualSorting` flags (4), `getSortColumn()` (3), `getSortDir()` (3), native/callback/manual row sorting (5), `getSortURL()` direction toggling (2), merged-row position preservation (1) |
+| `SortManagerTest` | 8 | 49 | `sortRows()` native ASC/DESC (2), callback ASC/DESC with negation (2), manual no-op (1), no-sort-column no-op (1), MergedRow position preservation (1), numeric native sort (1) |
+| `RendererSortHeaderTest` | 5 | 16 | Non-sortable no-link (base/Bootstrap5), sortable has `<a>` with sort URL, active sort indicator (▲/▼), Bootstrap5 utility classes on `<a>` |
 
 `GridPaginationTest` uses an anonymous `PaginationInterface` stub — zero global state. `ArrayPaginationTest` uses `setUp`/`tearDown` to save/restore `$_SERVER['REQUEST_URI']`. `GridActionsTest`, `StandardRowTest`, and `SelectionCellTest` do not require `set_error_handler`/`restore_error_handler`; the missing-value-column path now throws `DataGridException` and is tested with `expectException`.
 

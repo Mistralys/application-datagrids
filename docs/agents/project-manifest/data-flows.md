@@ -17,6 +17,9 @@ User code
   ├─ $grid->rows()->addArray([...])              → StandardRow
   │   $grid->rows()->addArrays([[...], [...]])   → multiple StandardRows
   │   $grid->rows()->addMerged('text')           → MergedRow
+  │   (all calls go through RowManager::registerRow(), which calls
+  │    BaseGridRow::setRowManager($this) on the row before storing it;
+  │    this back-reference lets rows call getGrid() at render time)
   │   (rows stored in RowManager::$rows)
   │
   ├─ $grid->options()->setEmptyMessage(...)
@@ -45,6 +48,15 @@ DataGrid::generateOutput()
   ├─ 2. Resolve rows:  DataGrid::resolveRows()
   │      └─ If no rows exist → creates MergedRow with empty message
   │
+  ├─ 2b. Sort rows (if sortManager initialized):
+  │      If isset($this->sortManager):
+  │        $this->sortManager->sortRows($rows)   ← dispatched via SortManagerInterface
+  │        └─ No-op if no sort column is active (getSortColumn() returns null)
+  │        └─ No-op for Manual mode (consumer controls ordering)
+  │        └─ Partitions StandardRows from non-standard rows, sorts StandardRows
+  │           in-place (Native or Callback mode), restores them to their original
+  │           relative positions; MergedRow slots remain unchanged.
+  │
   ├─ 3. Get header row:  RowManager::getHeaderRow()
   │      └─ Creates HeaderRow if options()->isHeaderRowEnabled()
   │
@@ -64,7 +76,12 @@ DataGrid::generateOutput()
   │        └─ renderHeaderCells(cols)
   │             ├─ If grid->hasActions():
   │             │    renderSelectionHeaderCell() → <th><input type="checkbox" id="grid-{id}-select-all" onclick="..."/></th>
-  │             └─ For each column: renderHeaderCell(col) → <th>...</th>
+  │             └─ For each column: renderHeaderCell(col) → createHeaderCell(col)
+  │                   ├─ col.isSortable() = false → <th> plain text label </th>
+  │                   └─ col.isSortable() = true  → <th> <a href="getSortURL"> label [<span>▲|▼</span>] </a> </th>
+  │                   (Bootstrap5Renderer overrides createSortAnchor(): same structure;
+  │                    <a> gains Bootstrap utility classes: text-decoration-none text-reset
+  │                    d-inline-flex align-items-center gap-1)
   │      renderer->renderHeaderBottom(GridHeader)    → </thead>
   │
   ├─ 8. Render footer:
@@ -277,4 +294,127 @@ $grid->renderer()->selectByClass(MyCustomRenderer::class)
 // Fallback:
 RendererManager::getRenderer()
   └─ If none selected → selectDefault() → DefaultRenderer
+```
+
+---
+
+## 8. Column Sorting
+
+`DataGrid::sorting()` lazily creates and returns a `SortManagerInterface` instance. Sorting is
+applied automatically during `echo $grid` / `render()` when a sort column is active.
+
+### Configuration
+
+```php
+// Enable native sorting on a column:
+$grid->columns()->add('name', 'Name')->useNativeSorting();
+$grid->columns()->add('age', 'Age')->useNativeSorting();
+
+// Or callback sorting (useful when cell values need custom comparison logic):
+$grid->columns()->add('status', 'Status')
+    ->useCallbackSorting(function (StandardRow $a, StandardRow $b, GridColumnInterface $col): int {
+        return strcmp($a->getValue($col), $b->getValue($col));
+    });
+
+// Customize $_GET parameter names (defaults: 'sort', 'sort_dir'):
+$grid->sorting()->setColumnParam('order_by')->setDirectionParam('dir');
+
+// URL parameters are read lazily on first access to getSortColumn() / getSortDir().
+// setColumnParam() / setDirectionParam() must be called BEFORE any read — they are
+// silently ignored once resolveSortState() has run.
+```
+
+### Sort state resolution (lazy, on first `getSortColumn()` / `getSortDir()` call)
+
+```
+$_GET['sort']     → column name
+  └─ ColumnManager::getByName(name)  — GridColumnException caught → no sort
+  └─ column->isSortable()            — false → no sort
+
+$_GET['sort_dir'] → direction string (case-insensitive)
+  └─ 'ASC' or 'DESC' → stored as-is (uppercased)
+  └─ any other value  → defaults to DataGridInterface::SORT_ASC
+
+If column is invalid: $sortColumn = null, $sortDir = SORT_ASC (no sorting).
+```
+
+### URL building (`getSortURL()`)
+
+```
+$sorting->getSortURL($column)
+  │
+  ├─ Reads $_SERVER['REQUEST_URI']             e.g. '/products?page=2&sort=name'
+  ├─ parse_url() → splits path from query string
+  ├─ parse_str() → decodes existing query params
+  ├─ Determines direction:
+  │    If $column === current sort column → toggle (ASC→DESC, DESC→ASC)
+  │    Else → ASC
+  ├─ Sets $params[$columnParam] = $column->getName()
+  │        $params[$dirParam]   = $direction
+  │   (all existing params preserved — pagination param survives)
+  └─ http_build_query() → reassembles query string
+     Returns: '/products?page=2&sort=name&sort_dir=DESC'
+
+  NOTE: returned URL is a raw string (not HTML-encoded).
+  Callers must HTML-encode it before embedding in HTML attributes.
+  The HTMLTag convention used by all renderers handles this automatically.
+```
+
+### Sort-aware header cell rendering (WP-003)
+
+```
+renderHeaderCell(GridColumnInterface $column)
+  └─ createHeaderCell(GridColumnInterface $column)
+       │
+       ├─ col.isSortable() = false
+       │    <th id col classes text-align> label text </th>
+       │
+       └─ col.isSortable() = true  →  createSortAnchor(col, [])
+            <a href=getSortURL(col)>       ← URL toggles ASC↔DESC for active col, else ASC
+              label
+              [<span>▲</span>]              ← if isSortedBy(col) ∧ dir == ASC
+              [<span>▼</span>]              ← if isSortedBy(col) ∧ dir == DESC
+            </a>
+
+       Wrapped in: <th id col classes text-align [nowrap] [compact-width]>
+
+Bootstrap5Renderer override (Template Method):
+  └─ createSortAnchor($column, $extraClasses)
+       prepends Bootstrap utility classes before any caller-supplied $extraClasses:
+         text-decoration-none  text-reset  d-inline-flex  align-items-center  gap-1
+       delegates to parent::createSortAnchor($column, $mergedClasses)
+       Non-sortable columns fall through to the inherited parent::createHeaderCell() unchanged.
+```
+
+### Row sorting in `generateOutput()`
+
+```
+DataGrid::generateOutput()
+  │
+  └─ After resolveRows():
+       If isset($this->sortManager):          ← guard: only runs when sorting() was called
+         $this->sortManager->sortRows($rows)  ← dispatched via SortManagerInterface
+           │
+           ├─ getSortColumn() → null          → return (no-op)
+           ├─ getSortMode() → Manual          → return (no-op)
+           │
+           ├─ Partition rows:
+           │    StandardRow[]  → $standardRows (with their original $rows indices)
+           │    Other rows     → left in place (MergedRow, HeaderRow, etc.)
+           │
+           ├─ count($standardRows) < 2        → return (nothing to sort)
+           │
+           ├─ SortMode::Native:
+           │    usort() with compareValues():
+           │      Both numeric → spaceship <=> operator
+           │      Both string  → strcasecmp()
+           │      Mixed        → strcasecmp((string)$a, (string)$b)
+           │    Result negated for DESC.
+           │
+           ├─ SortMode::Callback:
+           │    usort() with $column->getSortCallback()($a, $b, $column)
+           │    Result negated for DESC.
+           │
+           └─ Reassemble: $standardRows written back into their original indices
+              Non-standard rows remain at their original positions in $rows.
 ```

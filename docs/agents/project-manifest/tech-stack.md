@@ -67,4 +67,4 @@ All major components expose an interface (`DataGridInterface`, `GridColumnInterf
 
 `AppUtils\Grids` — all source classes live under this namespace.
 
-> **Note:** `StandardRow` currently uses the namespace `WebcomicsBuilder\Grids\Rows\Types` instead of `AppUtils\Grids\Rows\Types`. This appears to be a legacy/naming artifact. The classmap autoloader resolves it regardless of PSR-4 compliance.
+

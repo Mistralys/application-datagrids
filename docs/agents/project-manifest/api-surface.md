@@ -22,6 +22,7 @@ interface DataGridInterface extends RenderableInterface, ClassableInterface
     public function hasActions(): bool;           // no lazy init — false when no actions configured
     public function processActions(): bool;       // idempotent — dispatches action callback at most once per request
     public function pagination(): GridPagination;
+    public function sorting(): SortManagerInterface;
     public function getSortColumn(): ?GridColumnInterface;
     public function getSortDir(): string;
 }
@@ -47,6 +48,7 @@ class DataGrid implements DataGridInterface
     public function actions(): GridActions;
     public function processActions(): bool;       // idempotent — dispatches action callback at most once per request
     public function pagination(): GridPagination;
+    public function sorting(): SortManagerInterface;
     public function getSortColumn(): ?GridColumnInterface;
     public function getSortDir(): string;
 }
@@ -59,12 +61,24 @@ class DataGridException extends BaseException
 {
     public const ERROR_NO_PAGINATION_PROVIDER = 171700;
     public const ERROR_NO_VALUE_COLUMN = 171701;
+    public const ERROR_NO_ROW_MANAGER = 171702;
 }
 ```
 
 ---
 
 ## Columns (`Columns/`)
+
+### `SortMode` (enum)
+
+```php
+enum SortMode: string   // backed string enum
+{
+    case Native   = 'native';
+    case Callback = 'callback';
+    case Manual   = 'manual';
+}
+```
 
 ### `GridColumnInterface` (interface)
 
@@ -81,6 +95,8 @@ interface GridColumnInterface extends ClassableInterface, IDInterface, AlignInte
     public function useManualSorting(): self;
     public function useCallbackSorting(callable $callback): self;
     public function isSortable(): bool;
+    public function getSortMode(): ?SortMode;
+    public function getSortCallback(): ?\Closure;
     public function setWidth(int|string|NumberInfo|NULL $width): self;
     public function getWidth(): ?NumberInfo;
     public function formatValue(mixed $value): string;
@@ -103,9 +119,11 @@ abstract class BaseGridColumn implements GridColumnInterface
     public function setCompact(bool $compact = true): self;
     public function isCompact(): bool;
     public function useNativeSorting(): self;
+    public function useCallbackSorting(callable $callback): self;
+    public function useManualSorting(): self;
     public function isSortable(): bool;
-    public function useCallbackSorting(callable $callback): GridColumnInterface;
-    public function useManualSorting(): GridColumnInterface;
+    public function getSortMode(): ?SortMode;
+    public function getSortCallback(): ?\Closure;
     public function setWidth(int|string|NumberInfo|NULL $width): self;
     public function getWidth(): ?NumberInfo;
 }
@@ -178,6 +196,10 @@ interface GridRowInterface extends ClassableInterface, IDInterface
 abstract class BaseGridRow implements GridRowInterface
 {
     // Traits: ClassableTrait, IDTrait
+
+    public function setRowManager(RowManager $manager): self;
+    public function getGrid(): DataGridInterface;    // throws DataGridException::ERROR_NO_ROW_MANAGER if manager not set
+    public function isSelectable(): bool;            // false when manager not set; delegates to hasActions() otherwise
 }
 ```
 
@@ -188,9 +210,9 @@ class RowManager
 {
     public function __construct(DataGridInterface $grid);
     public function getGrid(): DataGridInterface;
-    public function addArrays(array $rows): self;
-    public function addArray(array $columnValues): StandardRow;
-    public function addMerged($content = null): MergedRow;
+    public function addArrays(array $rows): self;               // @param array<int, array<string, mixed>> $rows
+    public function addArray(array $columnValues): StandardRow; // @param array<string, mixed> $columnValues
+    public function addMerged(string|StringableInterface|NULL $content = null): MergedRow;
     public function registerRow(GridRowInterface $row): self;
     public function getRows(): array; // GridRowInterface[]
     public function isHeaderRowEnabled(): bool;
@@ -208,8 +230,6 @@ class GridRowException extends DataGridException {}
 
 #### `StandardRow`
 
-> **Note:** Currently in namespace `WebcomicsBuilder\Grids\Rows\Types` (see Constraints).
-
 ```php
 class StandardRow extends BaseGridRow
 {
@@ -218,10 +238,9 @@ class StandardRow extends BaseGridRow
     public function getCell(GridColumnInterface|string $column): RegularCell;
     public function getValue(GridColumnInterface|string $column): mixed;
     public function setValues(array $values): GridRowInterface;
-    public function isSelectable(): bool;
     public function getSelectValue(): string;      // returns the string value of the value-column cell
     public function getSelectionCell(): ?SelectionCell;  // null when not selectable; throws DataGridException::ERROR_NO_VALUE_COLUMN when selectable but value column not configured
-    public function getGrid(): DataGridInterface;
+    // getGrid() and isSelectable() inherited from BaseGridRow
 }
 ```
 
@@ -231,6 +250,7 @@ class StandardRow extends BaseGridRow
 class MergedRow extends BaseGridRow
 {
     public function __construct(string|StringableInterface|NULL $content = null);
+    public function isSelectable(): bool;    // always returns false
     public function setContent(string|StringableInterface|NULL $content): self;
     public function getContent(): string;
 }
@@ -241,6 +261,7 @@ class MergedRow extends BaseGridRow
 ```php
 class HeaderRow extends BaseGridRow
 {
+    public function isSelectable(): bool;    // always returns false
     public function getRepeatedID(): ?string;
 }
 ```
@@ -355,6 +376,56 @@ class SeparatorAction implements GridActionInterface {}
 
 ---
 
+## Sorting (`Sorting/`)
+
+### `SortManagerInterface` (interface)
+
+```php
+interface SortManagerInterface
+{
+    /**
+     * @param GridRowInterface[] $rows
+     */
+    public function sortRows(array &$rows): void;
+    public function getSortColumn(): ?GridColumnInterface;
+    public function getSortDir(): string;                         // returns SORT_ASC or SORT_DESC
+    public function getSortURL(GridColumnInterface $column): string;  // toggles direction for active column, else ASC; always apply htmlspecialchars() outside HTMLTag contexts
+    public function isSortedBy(GridColumnInterface $column): bool;
+    public function setColumnParam(string $param): self;          // default: 'sort'
+    public function setDirectionParam(string $param): self;       // default: 'sort_dir'
+    public function getColumnParam(): string;
+    public function getDirectionParam(): string;
+}
+```
+
+### `SortManager`
+
+Resolves sort state lazily from `$_GET` on first access. URL building follows the same `parse_url` / `http_build_query` pattern as `ArrayPagination`.
+
+```php
+class SortManager implements SortManagerInterface
+{
+    public function __construct(DataGridInterface $grid);
+
+    // SortManagerInterface — all methods delegated to lazy resolveSortState()
+    public function getSortColumn(): ?GridColumnInterface;
+    public function getSortDir(): string;
+    public function getSortURL(GridColumnInterface $column): string; // plain URL — always apply htmlspecialchars() outside HTMLTag contexts
+    public function isSortedBy(GridColumnInterface $column): bool;
+    public function setColumnParam(string $param): self;
+    public function setDirectionParam(string $param): self;
+    public function getColumnParam(): string;
+    public function getDirectionParam(): string;
+
+    // Row sorting — called by DataGrid::generateOutput()
+    // Partitions StandardRow instances, sorts them in-place, preserves non-standard row positions.
+    // No-op for Manual mode or when no sort column is active.
+    public function sortRows(array &$rows): void; // @param GridRowInterface[] $rows
+}
+```
+
+---
+
 ## Renderer (`Renderer/`)
 
 ### `GridRendererInterface` (interface)
@@ -402,7 +473,12 @@ abstract class BaseGridRenderer implements GridRendererInterface
     protected function createHeader(GridHeader $header): HTMLTag;
     protected function createHeaderRow(HeaderRow $row, array $columns): HTMLTag;
     protected function createHeaderRowRepeated(HeaderRow $row, array $columns): HTMLTag;
+    // (WP-003) Sort-aware: plain text for non-sortable columns; delegates to createSortAnchor() for sortable columns.
     protected function createHeaderCell(GridColumnInterface $column): HTMLTag;
+    // (WP-003) Builds <a href="getSortURL(col)"> with label and optional <span>▲|▼</span> indicator when isSortedBy(col).
+    // $extraClasses are added to the <a> element (used by Bootstrap5Renderer override).
+    // @param string[] $extraClasses
+    protected function createSortAnchor(GridColumnInterface $column, array $extraClasses = []): HTMLTag;
     protected function createFooter(GridFooter $footer): HTMLTag;
     protected function renderHeaderCells(array $columns): string|StringableInterface;
     protected function createStandardRow(StandardRow $row, array $columns): HTMLTag;
@@ -430,6 +506,8 @@ abstract class BaseGridRenderer implements GridRendererInterface
     protected function createEllipsis(): HTMLTag;
     // XSS-safe: $inputId and $urlTemplate are encoded with json_encode() before interpolation into the JS onclick string.
     protected function createPageJumpInput(GridPagination $pagination): HTMLTag;
+    // Template method hook — returns a plain <span> wrapper by default; override to customise the container element.
+    protected function createPageJumpContainer(HTMLTag $input, HTMLTag $button): HTMLTag;
 }
 ```
 
@@ -438,7 +516,7 @@ abstract class BaseGridRenderer implements GridRendererInterface
 ```php
 class RendererManager
 {
-    public function __construct(DataGrid $grid);
+    public function __construct(DataGridInterface $grid);
     public function selectDefault(): DefaultRenderer;
     public function selectBootstrap5(): Bootstrap5Renderer;
     public function selectByClass(string $class): GridRendererInterface;
@@ -471,13 +549,22 @@ class Bootstrap5Renderer extends BaseGridRenderer
     public function makeCompact(): self;
     public function renderCustomRow(GridRowInterface $row, array $columns): string;
 
+    // Sort header (WP-003) — Bootstrap 5 override: injects Bootstrap utility classes
+    // (text-decoration-none text-reset d-inline-flex align-items-center gap-1) into the <a> anchor
+    // by overriding createSortAnchor() and delegating to parent with extra classes.
+    // Non-sortable columns fall through to the inherited parent::createHeaderCell().
+    // @param string[] $extraClasses
+    protected function createSortAnchor(GridColumnInterface $column, array $extraClasses = []): HTMLTag;
+
     // Pagination (WP-005) — Bootstrap 5 override of BaseGridRenderer::renderPaginationRow()
     // Produces <tr><td colspan><nav aria-label="Page navigation"><ul class="pagination">...
     public function renderPaginationRow(GridPagination $pagination): string|StringableInterface;
+    // Protected override (template method hook from BaseGridRenderer):
+    protected function createPageJumpContainer(HTMLTag $input, HTMLTag $button): HTMLTag; // applies Bootstrap classes to $input/$button; wraps in <div class="d-flex align-items-center gap-2 mt-2">
     // Private helpers (not overridable):
     // createBootstrapPaginationRow(), createBootstrapPreviousItem(),
     // createBootstrapNextItem(), createBootstrapPageItem(),
-    // createBootstrapEllipsisItem(), createBootstrapPageJumpInput()  ← XSS-safe via json_encode() (mirrors BaseGridRenderer)
+    // createBootstrapEllipsisItem()
 }
 ```
 
@@ -494,7 +581,7 @@ class GridForm implements ClassableInterface, IDInterface
 
     public function addHiddenVar(string $name, string|int|float|bool $value, ?string $id = null): HiddenVar;
     public function registerHiddenVar(HiddenVar $var): self;
-    public function setHiddenVars(array $vars): self;
+    public function setHiddenVars(array $vars): self;  // @param array<string,string|int|bool> $vars
     public function getHiddenVars(): array; // HiddenVar[]
 }
 ```
